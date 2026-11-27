@@ -1146,7 +1146,7 @@ document.addEventListener("submit",e=>{if(e.target.id!=="add")return;e.preventDe
  save();render();toast("Offer added")});
 // ---- free accounts (Supabase): email + password, data synced across devices ----
 // The publishable key is meant to be public; row-level security in the database keeps each user's data private.
-const SB_URL="",SB_KEY="sb_publishable_LBUhyFQtNiUHpq3fQRxOKg_Qdmp2eel",SB_ON=!!(SB_URL&&SB_KEY);
+const SB_URL="https://kabhrbrfrtmfzhxyttqc.supabase.co",SB_KEY="sb_publishable_LBUhyFQtNiUHpq3fQRxOKg_Qdmp2eel",SB_ON=!!(SB_URL&&SB_KEY);
 const HOME=location.origin+location.pathname;
 let AUTH=null,AMODE="in",AMSG="",AERR="",AEMAIL="",ABUSY=false,SYNC=null;
 try{AUTH=SB_ON?JSON.parse(localStorage.getItem("cbt_auth")||"null"):null}catch(e){}
