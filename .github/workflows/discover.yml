@@ -1,0 +1,35 @@
+name: Crawl bank sites (manual / pilot)
+
+# Runs the bank-site crawler on its own so a run can be watched and its results downloaded.
+# The hourly refresh runs a short slice of the same crawl and publishes data/discovered.json.
+on:
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "Crawl time budget (minutes)"
+        default: "12"
+  push:
+    paths:
+      - scripts/discover.py
+      - .github/workflows/discover.yml
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install beautifulsoup4==4.12.3
+      - name: Crawler tests
+        run: python tests/test_discover.py
+      - name: Crawl
+        run: python scripts/discover.py --prev https://lukeonopa.github.io/bank-bonus-tracking/data/discovered.json --out discovered.json --minutes "${{ inputs.minutes || '12' }}" --workers 12
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: discovered
+          path: discovered.json
+          if-no-files-found: ignore
