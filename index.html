@@ -261,6 +261,35 @@ div.tl-name{cursor:default}
 @media(max-width:700px){.mv{grid-template-columns:minmax(0,1fr)}.mvact{justify-content:flex-start}.planbox{grid-template-columns:minmax(0,1fr)}
  .tl-grid{min-width:0}.tl-row{grid-template-columns:minmax(0,1fr);min-height:0}.tl-name{position:static;flex-direction:row;justify-content:flex-start;align-items:baseline;gap:8px;min-height:0;padding:10px 14px 0}
  .tl-track{margin:0 14px;height:34px}.seg{top:11px}.mk,.tl-add{top:17px}.seg.idle{top:16px}.tl-axis .tl-name{display:none}.tl-axis span:not(.q){display:none}.tl-axis{min-height:30px}}
+
+/* setup questionnaire */
+.intake{padding:0;overflow:hidden;margin-bottom:18px}
+.ihead{padding:24px 24px 0}.ihead .sec{margin:0 0 4px}.ihead .note{margin:0}
+.isteps{list-style:none;display:flex;gap:6px;margin:18px 0 0;padding:0;overflow-x:auto;scrollbar-width:none;counter-reset:st}
+.isteps li{flex:1 0 auto;counter-increment:st}
+.isteps button{width:100%;display:flex;align-items:center;gap:8px;background:none;border:0;border-bottom:2px solid var(--rule);padding:10px 4px;font:500 14px var(--sans);color:var(--mute);cursor:pointer;min-height:44px;white-space:nowrap}
+.isteps button::before{content:counter(st);width:22px;height:22px;border-radius:50%;border:1px solid currentColor;font-size:12px;line-height:20px;text-align:center;flex:none}
+.isteps .on button{color:var(--ink);border-color:var(--green);font-weight:600}.isteps .on button::before{background:var(--green);border-color:var(--green);color:#fff}
+.isteps .done button{color:var(--green);border-color:color-mix(in srgb,var(--green) 40%,var(--rule))}.isteps .done button::before{content:"✓"}
+.ibody{padding:8px 24px}
+.iq{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:24px;align-items:center;padding:18px 0;border-bottom:1px solid var(--rule)}
+.iq:last-child{border-bottom:0}.iq b{font-weight:600;font-size:16px}.iq .note{margin:4px 0 0}
+.iq.wide{grid-template-columns:minmax(0,1fr)}
+.iq input,.iq select{margin:0}
+.seg2{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--rule);border-radius:10px;overflow:hidden}
+.seg2 label{position:relative;display:flex;align-items:center;justify-content:center;text-align:center;min-height:44px;padding:8px 10px;font-size:14px;color:var(--ink);cursor:pointer;font-weight:500}
+.seg2 label+label{border-left:1px solid var(--rule)}
+.seg2 input{position:absolute;opacity:0;width:1px;height:1px}
+.seg2 label:has(input:checked){background:var(--greenbg);color:#fff}
+.seg2 label:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:-2px}
+.bankgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px}
+.bk{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:10px 12px;min-height:52px;border:1px solid var(--rule);border-radius:10px;background:var(--field);color:var(--ink);font:500 14px var(--sans);cursor:pointer}
+.bk small{font-size:12px;font-weight:600;min-height:15px}
+.bk.have{border-color:var(--green);background:var(--oksoft)}.bk.have small{color:var(--green)}
+.bk.recent{border-color:var(--gold);background:var(--goldsoft)}.bk.recent small{color:var(--gold)}
+.inav{display:flex;justify-content:space-between;gap:10px;padding:16px 24px 22px;border-top:1px solid var(--rule);background:color-mix(in srgb,var(--paper) 50%,var(--sheet))}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+@media(max-width:700px){.iq{grid-template-columns:minmax(0,1fr);gap:10px}.ihead,.ibody{padding-left:16px;padding-right:16px}.inav{padding:14px 16px}}
 @media(prefers-reduced-motion:reduce){.toast,.card,.more summary::before{transition:none}}
 @media(max-width:1080px){.findwrap{grid-template-columns:minmax(0,1fr)}
  .side{position:static;max-height:none;overflow:visible;padding:0;background:var(--sheet);border:1px solid var(--rule);border-radius:14px}
@@ -460,12 +489,17 @@ function reElig(o){ // latest bonus/open in same churn group
  let last=null;for(const x of all()){if(grp(x)!==grp(o))continue;const t0=S.track[x.id];if(!t0)continue;
   for(const t of [t0,...(t0.history||[])]){const base=t.bonusDate||(["open","earned","closed"].includes(t.status)?t.opened:null);if(base&&(!last||base>last.base))last={base,x}}}
  if(!last)return null;const cd=last.x.cd??DEF_CD;if(cd===-1)return{life:1};return{date:addM(last.base,cd),assumed:last.x.cd==null}}
+const bkey=n=>String(n||"").toLowerCase().replace(/\(.*?\)/g,"").replace(/\b(the|bank|banks|na|n\.a\.|federal credit union|credit union|fcu|cu|federal|financial|checking|of)\b/g," ").replace(/[^a-z0-9]/g,"")||String(n).toLowerCase();
 function elig(o){
  const r=[],p=S.profile,st=S.track[o.id]?.status;
  if(o.exp&&o.exp<today())r.push("Offer expired "+fmt(o.exp));
  if(Array.isArray(o.st)&&p.state&&!o.st.includes(p.state))r.push("Only in "+o.st.join(", "));
  if(o.seen&&META&&-days(o.seen)>STALE_DAYS)r.push("Not listed on bonus sites since "+fmt(o.seen)+" — may have ended");
  if(o.mil&&!p.mil)r.push("Military / family membership only");
+ const rel=(p.banks||{})[bkey(o.b)];if(rel&&!["open","applied","earned"].includes(st))r.push(rel==="have"?`You already bank with ${o.b}, and bonuses are usually for new customers`:`You had a ${o.b} account recently, and most banks make you wait 1–2 years`);
+ if(o.branch&&p.branch===false)r.push("Has to be opened in a branch");
+ if(p.noHard&&o.pull==="hard")r.push("Does a hard credit pull");
+ if(p.noFee&&feeAmt(o)&&!/waiv|none/i.test(o.fee||""))r.push(`Charges ${money(feeAmt(o))} a month with no easy waiver`);
  if(o.dep&&o.dep>p.cash)r.push("Needs "+money(o.dep)+" in new money");
  const m=mreq(o),free=p.ddCap-used()+(st==="open"?m:0);
  if(m&&m>free)r.push("Needs ~"+money(m)+"/mo direct deposit; you have "+money(Math.max(0,free))+"/mo free");
@@ -727,28 +761,34 @@ const STAGES=[["planned","Planning"],["applied","Applied"],["open","Open"],["ear
 const feeAmt=o=>{const m=String(o.fee||"").match(/\$(\d+(?:\.\d\d)?)/);return m&&!/^none$/i.test(o.fee)?+m[1]:0};
 const keepD=o=>o.keep||DEF_KEEP;
 // ---------- planner: schedule new applications around paycheck capacity and a monthly pace ----------
-function plan(){const p=S.profile,cap=+p.ddCap||0,pace=+p.pace||3,T0=today(),H=182,out=[],act=[];
+function plan(){const p=S.profile,cap=+p.ddCap||0,pace=+p.pace||2,T0=today(),H=182,out=[],act=[];
  for(const o of all()){const t=S.track[o.id];if(!t)continue;
-  if(t.status==="open"&&t.opened){const end=addD(t.opened,o.win||90);if(end>T0)act.push({end,m:mreq(o)})}
-  if(t.status==="applied")act.push({end:addD(T0,(o.win||90)),m:mreq(o)})}
+  if(t.status==="open"&&t.opened){const end=addD(t.opened,o.win||90);if(end>T0)act.push({end,m:mreq(o),dd:mreq(o)>0})}
+  if(t.status==="applied")act.push({end:addD(T0,(o.win||90)),m:mreq(o),dd:mreq(o)>0})}
  const busy=new Set(all().filter(o=>["planned","applied","open"].includes(S.track[o.id]?.status)).map(grp));
  const recentApps=all().map(o=>S.track[o.id]?.applied).filter(Boolean);
  const best={};
+ const maxDD=+p.splits||99;let ddNow=act.filter(a=>a.m>0).length;
  for(const o of all()){if(busy.has(grp(o)))continue;const t=S.track[o.id];if(t&&["applied","open","planned"].includes(t.status))continue;
   const r=elig(o),hard=r.filter(x=>!/^Re-eligible|^Needs ~/.test(x));if(hard.length)continue;
+  if(o.st==="?"&&p.onlySure!==false)continue;          // states unknown: can't promise you qualify
+  if(o.auto&&p.onlySure!==false&&o.check?.status!=="confirmed")continue; // auto-collected and not confirmed on the bank's site
+  if(o.mil&&!p.mil)continue;
   const re=reElig(o);if(re&&re.life)continue;const from=re&&re.date&&re.date>T0?re.date:T0;
   if(from>addD(T0,H))continue;if(o.exp&&o.exp<addD(from,7))continue;
-  const od=odds(o),pf=od?od.p/100:.75,m=mreq(o);if(m>cap)continue;
+  const flex=p.transfers&&DDX[DDK(o)]&&DDX[DDK(o)].lvl!=="strict";
+  const od=odds(o),pf=od?od.p/100:.75,m=flex?0:mreq(o);if(m>cap)continue;if(o.dep&&o.dep>(+p.cash||0))continue;
   const sens=(CHX[CHK(o)]||{}).s==="high";
   const score=o.amt*pf/(1+m/2500)-feeAmt(o)*3+(sens?40:0)+(o.check?.status==="confirmed"?15:0)-(o.auto?20:0);
-  const k=grp(o);if(!best[k]||best[k].score<score)best[k]={o,score,from,m,od,sens}}
+  const k=grp(o);if(!best[k]||best[k].score<score)best[k]={o,score,from,m,od,sens,flex,dd:mreq(o)>0}}
  const C=Object.values(best).sort((a,b)=>b.score-a.score);
  for(let w=0;w*7<=H&&C.length;w++){const d=addD(T0,w*7);
   let free=cap-act.filter(a=>a.end>d).reduce((s,a)=>s+a.m,0);
   const inWin=x=>x>addD(d,-30)&&x<=d;let n=recentApps.filter(inWin).length+out.filter(x=>inWin(x.on)).length;
-  for(let i=0;i<C.length&&n<pace;i++){const c=C[i];if(c.from>d||c.m>free)continue;
-   out.push({o:c.o,on:d,m:c.m,od:c.od,sens:c.sens,end:addD(d,c.o.win||90),close:addD(d,keepD(c.o)+7),pay:addD(d,(c.o.win||90)+45)});
-   act.push({end:addD(d,c.o.win||90),m:c.m});free-=c.m;n++;C.splice(i,1);i--}}
+  const ddAct=act.filter(a=>a.end>d&&a.dd).length;
+  for(let i=0;i<C.length&&n<pace;i++){const c=C[i];if(c.from>d||c.m>free)continue;if(c.dd&&!c.flex&&ddAct+out.filter(x=>x.dd&&!x.flex&&x.on<=d&&x.end>d).length>=maxDD)continue;
+   out.push({o:c.o,on:d,m:c.m,od:c.od,sens:c.sens,flex:c.flex,dd:c.dd,end:addD(d,c.o.win||90),close:addD(d,keepD(c.o)+7),pay:addD(d,(c.o.win||90)+45)});
+   act.push({end:addD(d,c.o.win||90),m:c.m,dd:c.dd&&!c.flex});free-=c.m;n++;C.splice(i,1);i--}}
  return out}
 function planOffer(id,date){const t=S.track[id];
  if(t&&["closed","earned","denied"].includes(t.status)){const {history,...rest}=t;S.track[id]={history:[...(history||[]),rest],status:"planned",planOn:date,u:now()}}
@@ -768,7 +808,7 @@ function moves(P){const M=[],T0=today();
   if(t.status==="planned"&&t.planOn&&t.planOn<=T0)M.push({p:1,kind:"go",t:`Time to apply to ${B}`,b:`You planned this for ${fmt(t.planOn)}. ${o.req?esc(o.req):""}`,a:[["I applied","applied",id]]});
   if(t.status==="open"&&feeAmt(o)&&!M.some(m=>m.t.includes(B)))M.push({p:6,kind:"hold",t:`Watch the fee at ${B}`,b:`It charges ${money(feeAmt(o))} a month${/waiv/i.test(o.fee)?" unless you meet the fee waiver, usually a minimum balance or direct deposit":""}.`,a:[]})}
  for(const s of P.slice(0,3)){const o=s.o,now_=s.on<=addD(T0,6);
-  M.push({p:now_?2:4,kind:"plan",t:`${now_?"Apply now":"Apply "+fmt(s.on).replace(/, \d{4}$/,"")}: ${esc(o.b)} for ${money(o.amt)}`,b:`${mreq(o)?`Uses ${money(s.m)} a month of your paycheck until ${fmt(s.end)}.`:"No paycheck needed."}${s.od?` Approval odds ${oddsLbl(s.od.p)[0].toLowerCase()}.`:""}${s.sens?" This bank is strict about recent applications, so it's early in the plan.":""}`,a:[["Add to my plan","plan",esc(o.id),s.on]]})}
+  M.push({p:now_?2:4,kind:"plan",t:`${now_?"Apply now":"Apply "+fmt(s.on).replace(/, \d{4}$/,"")}: ${esc(o.b)} for ${money(o.amt)}`,b:`${!mreq(o)?"No paycheck needed.":s.flex?`Needs ${money(mreq(o))} a month in direct deposits; transfers from your own accounts usually count here.`:`Uses ${money(s.m)} a month of your paycheck until ${fmt(s.end)}.`}${s.od?` Approval odds ${oddsLbl(s.od.p)[0].toLowerCase()}.`:""}${s.sens?" This bank is strict about recent applications, so it's early in the plan.":""}`,a:[["Add to my plan","plan",esc(o.id),s.on]]})}
  return M.sort((a,b)=>a.p-b.p)}
 function movesHtml(M){if(!M.length)return "";
  return `<section class="moves"><h2 class="sec">What to do next</h2><ol class="mlist">${M.slice(0,7).map(m=>`<li class="mv ${m.kind}"><div><b>${m.t}</b><p>${m.b}</p></div>${m.a.length?`<div class="mvact">${m.a.map(([l,k,id,d])=>`<button class="btn ${k==="plan"?"":"ghost"}" data-act="nm" data-k="${k}" data-id="${id}"${d?` data-d="${d}"`:""}>${l}</button>`).join("")}</div>`:""}</li>`).join("")}</ol></section>`}
@@ -802,15 +842,43 @@ function timeline(P){const T0=today(),rows=[];
  return `<section class="tl"><div class="tl-head"><h2 class="sec">Timeline</h2><div class="legend"><span><i class="seg wait"></i>Waiting to open</span><span><i class="seg work"></i>Requirements window</span><span><i class="seg hold"></i>Keep open</span><span><b class="mk paid"></b>Paid</span><span><b class="mk closed"></b>Closed</span><span><b class="mk again"></b>Eligible again</span><span><i class="seg plan"></i>Suggested</span></div></div>
  <div class="tl-scroll"><div class="tl-grid"><div class="tl-row tl-axis"><div class="tl-name"></div><div class="tl-track">${months.join("")}<em class="today-l" style="left:${x(T0)}%">Today</em></div></div>${body}${ghost?`<div class="tl-sep">Suggested next applications</div>${ghost}`:""}</div></div>${!STAGE&&P.length>6?`<p style="margin:10px 0 0"><button class="btn ghost" data-act="planall">${PLANALL?"Show fewer suggestions":`Show all ${P.length} suggestions`}</button></p>`:""}</section>`}
 function planHtml(P){const p=S.profile,sum=P.reduce((s,x)=>s+x.o.amt,0);
- return `<section class="panel planbox"><div><h3>Your plan for the next 6 months</h3><p class="note">${P.length?`Following the suggested schedule could earn about <b>${money(sum)}</b> from ${P.length} new account${P.length===1?"":"s"}, without needing more than ${money(+p.ddCap||0)} a month in paychecks.`:`No new applications fit right now. Raise the paycheck amount you can send to new banks, or check back as accounts finish their requirements.`}</p></div>
- <label>New accounts per month<select data-act="prof" data-k="pace">${[1,2,3,4,5].map(n=>`<option${(+p.pace||3)===n?" selected":""}>${n}</option>`).join("")}</select></label></section>`}
-function viewMine(){const L=all().filter(o=>S.track[o.id]?.status),P=S.profile.state?plan():[];
+ const rules=[`live in ${esc(p.state)}`,`${money(+p.ddCap||0)} a month of paycheck split up to ${+p.splits||3} ways`,`up to ${+p.pace||2} new account${(+p.pace||2)===1?"":"s"} a month`,p.transfers?"transfers count where they're known to work":"real paychecks only",p.onlySure!==false?"only offers you definitely qualify for":"uncertain offers included"];
+ return `<section class="panel planbox"><div><h3>Your plan for the next 6 months</h3><p class="note">${P.length?`Following the suggested schedule could earn about <b>${money(sum)}</b> from ${P.length} new account${P.length===1?"":"s"}.`:`No new applications fit your answers right now. Try allowing more accounts a month, a bigger paycheck amount, or uncertain offers.`} Based on your answers: ${rules.join(", ")}.</p></div>
+ <button class="btn ghost" data-act="iedit">Change my answers</button></section>`}
+let ISTEP=0,IEDIT=false;
+function bankList(){const seen=new Map();for(const o of OFFERS.filter(o=>!o.auto))if(!seen.has(bkey(o.b)))seen.set(bkey(o.b),o.b);return [...seen].sort((a,b)=>a[1].localeCompare(b[1]))}
+function intake(){const p=S.profile,steps=["Where you bank","Your paycheck","Money and credit","Banks you've used","Pace and ChexSystems"];
+ const yn=(k,yes,no,def)=>{const v=p[k]??def;return `<div class="seg2" role="radiogroup"><label><input type="radio" name="${k}" data-act="iqb" data-k="${k}" value="1"${v===true?" checked":""}>${yes}</label><label><input type="radio" name="${k}" data-act="iqb" data-k="${k}" value="0"${v===false?" checked":""}>${no}</label></div>`};
+ const q=(t,help,ctl)=>`<div class="iq"><div><b>${t}</b>${help?`<p class="note">${help}</p>`:""}</div><div>${ctl}</div></div>`;
+ let body="";
+ if(ISTEP===0)body=q("Which state do you live in?","Most bonuses are only for people living near the bank's branches.",`<select data-act="prof" data-k="state" aria-label="State"><option value="">Choose your state</option>${STATES.map(s=>`<option${s===p.state?" selected":""}>${s}</option>`).join("")}</select>`)
+  +q("Can you get to a bank branch to open an account?","A few offers can only be opened in person.",yn("branch","Yes","No, online only",true))
+  +q("Can you join Navy Federal?","Members of the military, veterans, Department of Defense workers and their families.",yn("mil","Yes","No",false));
+ if(ISTEP===1)body=q("How much of your paycheck can you send to new banks each month?","Your take-home pay that can go somewhere other than your main bank.",`<input type="number" inputmode="numeric" min="0" step="100" data-act="prof" data-k="ddCap" value="${+p.ddCap||0}" aria-label="Monthly paycheck amount">`)
+  +q("Into how many accounts can your employer split your paycheck?","Check your payroll site. Many allow 2 to 5. Pick 1 if you can only change the whole deposit.",`<select data-act="prof" data-k="splits" aria-label="Paycheck splits">${[1,2,3,4,5,6,8,10].map(n=>`<option${(+p.splits||3)===n?" selected":""}>${n}</option>`).join("")}</select>`)
+  +q("Are you comfortable moving money between your own accounts to meet direct deposit rules?","At many banks a transfer from another bank you own counts as a direct deposit. Banks can still refuse the bonus if it doesn't count, so some people prefer real paychecks only.",yn("transfers","Yes, when it's known to work","No, real paychecks only",false));
+ if(ISTEP===2)body=q("How much cash could you leave in a new account for a few months?","Some bonuses need a deposit instead of a paycheck.",`<input type="number" inputmode="numeric" min="0" step="500" data-act="prof" data-k="cash" value="${+p.cash||0}" aria-label="Cash available">`)
+  +q("Is a hard credit check OK?","It can lower your credit score a few points for a while. Most checking accounts only do a soft check.",yn("noHard","Avoid hard checks","Fine with me",false).replace('value="1"','value="1"').replace(/data-k="noHard" value="1"/,'data-k="noHard" value="1"'))
+  +q("Skip accounts with monthly fees that are hard to avoid?","Most fees can be waived with a minimum balance or a direct deposit.",yn("noFee","Yes, skip them","No, I'll manage",false));
+ if(ISTEP===3){const B=bankList(),rel=p.banks||{};body=`<div class="iq wide"><div><b>Which of these banks do you use now, or have closed in the last 2 years?</b><p class="note">Bonuses are almost always for new customers. Tap once for "have it now," twice for "closed recently," and a third time to clear.</p></div>
+  <div class="bankgrid">${B.map(([k,n])=>`<button class="bk ${rel[k]||""}" data-act="bank" data-k="${esc(k)}" aria-pressed="${!!rel[k]}">${esc(n)}<small>${rel[k]==="have"?"Have it now":rel[k]==="recent"?"Closed recently":""}</small></button>`).join("")}</div></div>`}
+ if(ISTEP===4){const c=S.profile.chex||{};body=q("How many new accounts a month are you comfortable opening?","Opening too many at once can get you turned down at banks that count recent applications.",`<select data-act="prof" data-k="pace" aria-label="Accounts per month">${[1,2,3,4,5].map(n=>`<option${(+p.pace||2)===n?" selected":""}>${n}</option>`).join("")}</select>`)
+  +q("Only suggest offers you definitely qualify for?","Some offers come from bonus sites without a list of eligible states. Turn this off to include them anyway.",yn("onlySure","Yes, only sure things","Include uncertain ones",true))
+  +q("How many bank applications are on your ChexSystems report from the last 12 months?",`Rough is fine. For exact counts, upload your report on the Deposits &amp; ChexSystems tab.`,`<input type="number" inputmode="numeric" min="0" data-act="chex" data-k="c12" value="${c.c12??""}" placeholder="0" aria-label="ChexSystems inquiries in 12 months">`)}
+ return `<section class="intake panel"><div class="ihead"><h2 class="sec">${IEDIT?"Your planning answers":"Let's build your plan"}</h2><p class="note">${IEDIT?"Change anything and the plan updates right away.":"Five quick questions, so suggestions only include bonuses you can actually get."}</p>
+ <ol class="isteps">${steps.map((s,i)=>`<li class="${i===ISTEP?"on":i<ISTEP?"done":""}"><button data-act="istep" data-k="${i}">${s}</button></li>`).join("")}</ol></div>
+ <div class="ibody">${body}</div>
+ <div class="inav"><button class="btn ghost" data-act="istep" data-k="${ISTEP-1}"${ISTEP===0?" disabled":""}>Back</button>${ISTEP<4?`<button class="btn" data-act="istep" data-k="${ISTEP+1}"${ISTEP===0&&!p.state?" disabled":""}>Next</button>`:`<button class="btn" data-act="idone">${IEDIT?"Done":"Show my plan"}</button>`}</div></section>`}
+function viewMine(){const L=all().filter(o=>S.track[o.id]?.status),ready=S.profile.intakeDone&&S.profile.state;
+ if(!ready||IEDIT){const parts=intake();return parts+(L.length&&!IEDIT?`<p class="note" style="margin:14px 0 22px">Your ${L.length} tracked account${L.length===1?" is":"s are"} below. Suggestions appear once you finish.</p>`+timeline([])+mineCards(L):"")}
+ const P=plan();
  if(!L.length&&!P.length)return `<div class="empty"><b>No accounts yet.</b><br>Choose your state on Find offers to get a suggested plan, or pick a status like "Applied" on any offer and it moves here.</div>`;
  const strip=L.length?`<div class="stages" role="group" aria-label="Filter by stage">${STAGES.map(([k,l])=>{const c=L.filter(o=>S.track[o.id].status===k).length;return `<button class="stage${c?"":" zero"}" data-act="stage" data-k="${k}" aria-pressed="${STAGE===k}"><b>${c}</b><span>${l}</span></button>`}).join("")}</div>`:"";
  const bar=askReset?`<div class="panel bar" role="alertdialog" aria-label="Confirm reset"><span style="flex:1 1 260px"><b>Reset all ${L.length} accounts?</b> Every account goes back to Find offers and its dates, progress and notes are cleared. Your profile and any offers you added stay.</span><button class="btn danger" data-act="reset-do">Reset everything</button><button class="btn ghost" data-act="reset-no">Cancel</button></div>`
   :L.length?`<div class="bar" style="justify-content:space-between;margin-top:28px"><span class="note">${STAGE?`Showing ${STAGES.find(s=>s[0]===STAGE)[1].toLowerCase()} only. <a href="#mine" data-act="stage" data-k="">Show all</a>`:`To send one offer back to Find offers, set it to "Not started."`}</span><button class="btn ghost" data-act="reset-ask">Reset all accounts</button></div>`:"";
- const cards=[["open","Open: working on requirements"],["applied","Applied: waiting to hear back"],["planned","Planning to apply"],["earned","Paid: waiting until it's safe to close"],["closed","Closed"],["denied","Denied"]].filter(([k])=>!STAGE||STAGE===k).map(([k,h])=>{const g=L.filter(o=>S.track[o.id].status===k);return g.length?`<h2 class="sec">${h} <span class="note">(${g.length})</span></h2><div class="grid">${g.map(mineCard).join("")}</div>`:""}).join("");
+ const cards=mineCards(L);
  return strip+movesHtml(moves(P))+planHtml(P)+timeline(P)+bar+cards}
+function mineCards(L){return [["open","Open: working on requirements"],["applied","Applied: waiting to hear back"],["planned","Planning to apply"],["earned","Paid: waiting until it's safe to close"],["closed","Closed"],["denied","Denied"]].filter(([k])=>!STAGE||STAGE===k).map(([k,h])=>{const g=L.filter(o=>S.track[o.id].status===k);return g.length?`<h2 class="sec">${h} <span class="note">(${g.length})</span></h2><div class="grid">${g.map(mineCard).join("")}</div>`:""}).join("")}
 function events(){const E=[];for(const o of all()){const t=S.track[o.id];if(!t||!t.status)continue;
  if(t.status==="open"&&t.opened)E.push({d:addD(t.opened,o.win||90),what:"Requirements deadline",o});
  if(["open","earned"].includes(t.status)&&t.opened)E.push({d:addD(t.opened,o.keep||DEF_KEEP),what:"Safe to close",o});
@@ -942,6 +1010,10 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data
  if(a==="rvcancel"){RV=null;CHMSG="";render()}
  if(a==="chexpaste"){const t=$("#chexpaste")?.value||"";if(t.trim()){finishRead(parseReport(t),"pasted text");render()}}
  if(a==="chexfill"){S.profile.chexAuto=false;S.profile.chex=fillChex();S.profile.u=now();save();render();toast("Estimated from accounts in your tracker — adjust to match your report")}
+ if(a==="istep"){const k=+b.dataset.k;if(k>=0&&k<=4){ISTEP=k;render();$("#view .intake")?.scrollIntoView({block:"start",behavior:RM.matches?"auto":"smooth"})}return}
+ if(a==="idone"){S.profile.intakeDone=true;S.profile.u=now();IEDIT=false;ISTEP=0;save();render();window.scrollTo({top:0,behavior:RM.matches?"auto":"smooth"});toast("Plan ready");return}
+ if(a==="iedit"){IEDIT=true;ISTEP=0;render();$("#view .intake")?.scrollIntoView({block:"start"});return}
+ if(a==="bank"){const k=b.dataset.k,B=S.profile.banks=S.profile.banks||{};B[k]=!B[k]?"have":B[k]==="have"?"recent":undefined;if(!B[k])delete B[k];S.profile.u=now();save();render();return}
  if(a==="planall"){PLANALL=!PLANALL;render();return}
  if(a==="nm"){const id=b.dataset.id,k=b.dataset.k;if(k==="plan")planOffer(id,b.dataset.d||today());else setStatus(id,k,document.querySelector(`#view .card[data-card="${CSS.escape(id)}"] select[data-act="status"]`));return}
  if(a==="jump"){const c=document.querySelector(`#view .card[data-card="${CSS.escape(b.dataset.id)}"]`);if(c){c.scrollIntoView({behavior:RM.matches?"auto":"smooth",block:"center"});c.animate([{boxShadow:"0 0 0 3px var(--gold)"},{boxShadow:"0 0 0 0 transparent"}],{duration:1400})}return}
@@ -957,6 +1029,7 @@ document.addEventListener("input",e=>{const el=e.target;if(el.dataset.act==="f"&
 document.addEventListener("change",e=>{const el=e.target,a=el.dataset.act;if(!a)return;
  if(a==="status")return setStatus(el.dataset.id,el.value,el);
  if(a==="prof"){const k=el.dataset.k;S.profile[k]=el.type==="checkbox"?el.checked:el.type==="number"?+el.value:el.value;S.profile.u=now();save();setTimeout(render,0)}
+ if(a==="iqb"){S.profile[el.dataset.k]=el.value==="1";S.profile.u=now();save();setTimeout(render,0);return}
  if(a==="chexfile"){const f=el.files&&el.files[0];el.value="";if(f)readFile(f);return}
  if(a==="rvinc"&&RV){RV.inq[+el.dataset.i].inc=el.checked;setTimeout(render,0);return}
  if(a==="chex"){S.profile.chexAuto=false;S.profile.chex={...(S.profile.chex||{}),[el.dataset.k]:el.value===""?null:Math.max(0,+el.value)};S.profile.u=now();save();setTimeout(render,0)}
