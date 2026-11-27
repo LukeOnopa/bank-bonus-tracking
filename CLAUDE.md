@@ -25,6 +25,7 @@ If two apply, run them in parallel. If a subagent can't reach a website (cloud s
 
 ## Project basics
 - The app is one file, `index.html`. The user's data stays in their browser (localStorage).
-- `scripts/scrape.py` runs hourly on GitHub Actions (`.github/workflows/refresh.yml`) and deploys `index.html` plus a fresh `data/offers.json` to GitHub Pages. Every push to `main` also deploys.
-- Run `python -m pytest tests/` after changing the scraper.
+- The full refresh (`.github/workflows/refresh.yml`) runs daily at 11:17 UTC and on every push to `main`: `scripts/scrape.py` (roundups, `reference.py` articles, bank-page checks, `locate.py` federal states), then `scripts/discover.py` (crawler), then deploys `index.html` + `data/offers.json` to GitHub Pages.
+- The Refresh offers button runs the Supabase Edge Function in `supabase/functions/refresh-offers/` (quick refresh, saved to the `site_data` table). Its `roundups.ts` mirrors the Python roundup parsers: change both together and run `npm run parity`.
+- Tests: `python tests/test_<name>.py` for scrape, locate, reference, discover; `npm test` for the browser tests (all run on GitHub on every push).
 - Curated details in `data/curated.json` always win over scraped ones.
