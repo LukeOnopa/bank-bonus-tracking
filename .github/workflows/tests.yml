@@ -22,6 +22,8 @@ jobs:
         run: python tests/test_discover.py
       - name: Location lookup tests
         run: python tests/test_locate.py
+      - name: Roundup reference tests
+        run: python tests/test_reference.py
 
       - uses: actions/setup-node@v4
         with:

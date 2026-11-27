@@ -26,6 +26,7 @@ from bs4 import BeautifulSoup
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from locate import locate  # noqa: E402
+import reference as reference_mod  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TODAY = dt.date.today().isoformat()
@@ -511,11 +512,20 @@ def main():
     else:
         offers = merge(curated, scraped, prev, ok)
     if os.environ.get("SKIP_LOCATE") != "1":
+        # the roundups are a reference; the banks' own pages and the federal lists come first
+        try:
+            reference_mod.set_aside_roundup_states(offers)
+            n = reference_mod.reference(offers, prev, fetch, link_matches_bank)
+            print(f"Read {n} roundup articles for bank links, availability and end dates")
+        except Exception as e:
+            print("Reading roundup articles failed:", e)
         try:
             found, looked = locate(offers, prev, norm, fetch=fetch, link_ok=link_matches_bank)
-            print(f"Located {found} offers with unknown states ({looked} looked up this run)")
+            print(f"Located {found} offers in the FDIC/NCUA lists ({looked} looked up this run)")
         except Exception as e:  # never let this block the refresh
             print("Locating offers failed:", e)
+        for o in offers:
+            reference_mod.settle(o, dt.date.today())
     if os.environ.get("SKIP_VERIFY") != "1":
         n = verify(offers, prev)
         print(f"Checked {n} offer pages against their listed bonus")
