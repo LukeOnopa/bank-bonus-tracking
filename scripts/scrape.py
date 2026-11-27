@@ -216,14 +216,18 @@ def parse_fs(html):
             continue
         if re.fullmatch(r"(top|best|up to|earn|get|bonus|total).*", name, re.I):
             continue
-        parts, link = [], None
+        # the offer's own card = the largest ancestor that contains no other offer heading
+        card = h
+        while card.parent is not None and not any(id(x) in hset for x in card.parent.find_all(True) if x is not h):
+            card = card.parent
+        link = next((a["href"] for a in ([p for p in h.parents if p.name == "a" and p.get("href")] + card.find_all("a", href=True))
+                     if "/blog/" in a.get("href", "")), None)
+        parts = []
         for nxt in h.next_elements:
             if getattr(nxt, "name", None) and id(nxt) in hset:
                 break
-            if isinstance(nxt, str):
+            if isinstance(nxt, str) and h not in nxt.parents:
                 parts.append(nxt)
-            elif getattr(nxt, "name", None) == "a" and not link and "/blog/" in (nxt.get("href") or ""):
-                link = nxt["href"]
             if sum(map(len, parts)) > 900:
                 break
         bodytxt = clean(" ".join(parts))
@@ -323,12 +327,15 @@ def merge(curated, scraped, prev, ok_sources):
         a["first"] = prev_by_id.get(a["id"], {}).get("first", TODAY)
         out.append(a)
     # keep recently seen auto offers that a source missed this run (or whose source failed)
-    have = {o["id"] for o in out}
+    have_ids, have_banks = {o["id"] for o in out}, {norm(o["b"]) for o in out}
     for p in prev:
-        if p.get("auto") and p["id"] not in have and p.get("seen"):
+        if p.get("auto") and p["id"] not in have_ids and norm(p.get("b", "")) not in have_banks and p.get("seen"):
             age = (dt.date.today() - dt.date.fromisoformat(p["seen"])).days
             if age <= 14:
+                p = dict(p, id="auto-" + slug(norm(p["b"])))
                 out.append(p)
+                have_ids.add(p["id"])
+                have_banks.add(norm(p["b"]))
     return out
 
 

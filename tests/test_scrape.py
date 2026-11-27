@@ -40,9 +40,14 @@ FS_ITEMS = [("1", "HSBC", "3,000", "No DD (tiered) | $50/mo fee", "Premier offer
             ("42", "Hometown CU", "250", "No DD + 15 transactions | $0 monthly fee", "Hometown..."),
             ("43", "Navy Federal Credit Union", "400", "$500 DD in 120 days | 9mo cooldown", "Military only.")]
 FS_ITEMS += [(str(50 + i), f"Filler Bank {i}", "200", "$500 DD in 60 days | $0 monthly fee", "Filler.") for i in range(20)]
-FS = "<html><body><main>" + "".join(
-    f'<div class="card"><h3><span>{r}</span> <span>{n}</span><span>${a}</span></h3><p>{s}</p><p>{d} <a href="/blog/{n.lower().replace(" ", "-")}-bonus">Review →</a></p></div>'
-    for r, n, a, s, d in FS_ITEMS) + "</main></body></html>"
+def _fs_card(i, r, n, a, s, d):
+    href = f'/blog/{n.lower().replace(" ", "-")}-bonus'
+    if i % 2:  # layout A: link after the description
+        return f'<div class="card"><h3><span>{r}</span> <span>{n}</span><span>${a}</span></h3><p>{s}</p><p>{d} <a href="{href}">Review →</a></p></div>'
+    return f'<div class="card"><a href="{href}"><h3><span>{r}</span> <span>{n}</span><span>${a}</span> TOP PICK</h3></a><p>{s}</p><p>{d}</p></div>'  # layout B: link wraps heading
+
+
+FS = "<html><body><main>" + "".join(_fs_card(i, *x) for i, x in enumerate(FS_ITEMS)) + "</main></body></html>"
 
 
 def test():
@@ -64,6 +69,9 @@ def test():
     fo = f["Fat Stacks Only CU"]
     assert fo["dd"] == 750 and fo["tx"] == 8 and fo["cd"] == 18 and fo["exp"] == "2027-03-31" and fo["url"].endswith("fat-stacks-only-cu-bonus"), fo
     assert len(f) >= scrape.MIN_FS
+    for o in f.values():
+        assert o["url"].endswith(o["b"].lower().replace(" ", "-") + "-bonus"), ("link must come from the offer's own card", o["b"], o["url"])
+        assert not o["req"].lower().startswith(o["b"].lower()), ("summary must not repeat the heading", o["req"])
 
     curated = [{"id": "bmo", "b": "BMO", "amt": 600, "st": ["IL"], "cd": 12},
                {"id": "wf", "b": "Wells Fargo", "amt": 500, "st": "ALL", "cd": 12},
@@ -71,7 +79,9 @@ def test():
                {"id": "gone", "b": "Vanished Bank", "amt": 300, "st": "ALL", "cd": None},
                {"id": "chase-total", "b": "Chase", "amt": 400, "st": "ALL"}, {"id": "chase-900", "b": "Chase", "amt": 900, "st": "ALL"}]
     prev = [{"id": "gone", "seen": "2026-11-01", "first": "2026-10-01"}, {"id": "bmo", "amt": 600, "first": "2026-09-01"},
-            {"id": "auto-old-cu-250", "b": "Old CU", "amt": 250, "auto": 1, "seen": "2020-01-01"}]
+            {"id": "auto-old-cu-250", "b": "Old CU", "amt": 250, "auto": 1, "seen": "2020-01-01"},
+            {"id": "auto-hsbc-3000", "b": "HSBC", "amt": 3000, "auto": 1, "seen": scrape.TODAY},  # old id format
+            {"id": "auto-gone-cu-300", "b": "Gone CU", "amt": 300, "auto": 1, "seen": scrape.TODAY}]
     out = {o["id"]: o for o in scrape.merge(curated, list(d.values()) + list(f.values()), prev, ["x"])}
     assert out["bmo"]["amt"] == 650 and out["bmo"]["prevAmt"] == 600 and out["bmo"]["seen"] == scrape.TODAY, out["bmo"]
     assert out["bmo"]["st"] == ["AZ", "CA", "CO", "FL", "IL", "WI"], "Doctor of Credit's state list replaces the researched one"
@@ -84,6 +94,9 @@ def test():
     assert "Brand New Bank" in autos and "Hometown Credit Union" in autos and "Fat Stacks Only CU" in autos, set(autos)
     assert autos["Hometown Credit Union"]["st"] == ["MN"] and autos["Hometown Credit Union"]["t"] == "cu"
     assert "Old CU" not in autos, "auto offers unseen for >14 days are dropped"
+    allv = list(out.values())
+    assert sum(1 for o in allv if scrape.norm(o["b"]) == "hsbc") == 1, "old-format ids must not create duplicates"
+    assert "Gone CU" in autos and autos["Gone CU"]["id"] == "auto-gone", "recently seen offers are kept, with the new id format"
     assert "HSBC" in autos and "Schwab" in autos
     assert sum(1 for o in autos.values() if scrape.norm(o["b"]) == "hometown") == 1, "same bank on both sites must appear once"
     assert autos["Hometown Credit Union"]["srcs"] == ["doc", "fs"]
