@@ -53,6 +53,7 @@ def test():
     for u in ("/student-checking-promotion", "/high-school-promo/", "/existing-customer-checking-bonus", "/smartcard-promotion/"):
         assert discover.NOT_FOR_NEW.search(u), u
     assert not discover.NOT_FOR_NEW.search("/personal/checking/bonus-offer")
+    assert discover.NOT_FOR_NEW.search("/bank-accounts/savings-accounts/balance-saving-spending-annual-bonus.html")
     assert discover.clean_url("https://b.example/promo.html?icid=PB_1&utm_source=x") == "https://b.example/promo.html"
 
     # tiers on one page become one find; an unknown direct deposit amount isn't shown as $1

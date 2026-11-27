@@ -1,10 +1,14 @@
 """Fill in where an offer is available when the bonus roundups don't say.
 
-For offers with unknown states, find the institution in the official lists and use:
-- banks (FDIC BankFind): the states where it has branches
-- credit unions (NCUA): the state where it's based
-Matches must be unambiguous: the bank's own website domain, or an exact name match
-(with a state hint from the article address when several banks share a name).
+Banks that don't say where a bonus is available usually limit it to states where they
+have branches, so for offers with unknown states:
+- a Doctor of Credit address that names the states ("/wi-il-only-...") is used as is
+- otherwise the institution is found in the official lists and its branch states are used:
+  banks from FDIC BankFind, credit unions from NCUA (state where it's based if NCUA has
+  no branch list)
+Matches must be unambiguous: the bank's own website (from the offer's links, or from
+the bonus article's links to the bank), or an exact name match (with a state hint
+from the article address when several banks share a name).
 Anything uncertain stays unknown. Results are cached in offers.json for 30 days.
 """
 import datetime as dt
@@ -49,7 +53,7 @@ def host(url):
 
 def own_domains(o):
     """The bank's own website domains from the offer's links (not the bonus blogs)."""
-    out = set()
+    out = set(o.get("_articleDomains") or ())
     for u in (o.get("offerUrl"), o.get("url"), (o.get("check") or {}).get("url")):
         h = host(u)
         if h and not any(h == d or h.endswith("." + d) for d in THIRD_PARTY):
@@ -105,6 +109,51 @@ def ncua_candidates(name):
     return [r for r in j.get("results", []) if r.get("isActive") and not r.get("isCorporate")]
 
 
+def ncua_states(charter):
+    """States where a credit union has branches (NCUA's branch locator)."""
+    q = {k: False for k in ("is_mainOffice", "is_mdi", "is_member", "is_drive", "is_atm", "is_itm", "is_shared", "is_bilingual", "is_credit_builder",
+                            "is_fin_counseling", "is_homebuyer", "is_school", "is_low_wire", "is_no_draft", "is_no_tax", "is_payday")}
+    q.update(searchText=str(charter), rdSearchType="cunumber", rdSearchRadiusList=None, skip=0, take=2000, sort_item="", sort_direction="")
+    try:
+        j = get_json(f"{NCUA}/Search/GetSearchLocations", data=q)
+    except Exception:
+        return []
+    return sorted({x.get("state") for x in j.get("list") or [] if x.get("state") in STATES and str(x.get("creditUnionNumber")) == str(charter)})
+
+
+def article_states(o):
+    """Doctor of Credit puts the states first in limited offers' addresses: '/wi-il-onlyheritage-credit-union-...' -> ['IL', 'WI']."""
+    for u in (o.get("url"), o.get("offerUrl")):
+        if "doctorofcredit.com" not in (u or ""):
+            continue
+        toks = urlparse(u).path.strip("/").split("/")[-1].split("-")
+        codes = []
+        for t in toks:
+            if len(t) == 2 and t.upper() in STATES:
+                codes.append(t.upper())
+                continue
+            if codes and t.startswith("only"):
+                return sorted(set(codes))
+            break
+    return None
+
+
+def article_domains(o, fetch, link_ok):
+    """The bank's website, from the links in the bonus article the offer came from."""
+    u = o.get("url") or ""
+    if not fetch or not any(d in u for d in ("fatstacksacademy.com", "doctorofcredit.com")) or u.rstrip("/").endswith("best-bank-account-bonuses"):
+        return set()
+    try:
+        html = fetch(u)
+    except Exception:
+        return set()
+    out = set()
+    for href in re.findall(r'href="(https?://[^"#]+)"', html):
+        if link_ok(o["b"], href):
+            out.add(host(href))
+    return out if len(out) <= 3 else set()  # many matches means the article links to lots of banks; don't guess
+
+
 def ncua_site(charter):
     try:
         return get_json(f"{NCUA}/CreditUnionDetails/GetCreditUnionDetails/{charter}").get("creditUnionWebsite") or ""
@@ -149,7 +198,9 @@ def locate_one(o, norm):
                 sites = {r["charterNumber"]: ncua_site(r["charterNumber"]) for r in cands}
             c, how = pick(cands, o, norm, "name", lambda c: sites.get(c["charterNumber"], ""), "state")
             if c:
-                return {"st": [c["state"]], "stSrc": "hq", "stInst": f"{c['name'].title()} (NCUA #{c['charterNumber']})", "stHow": how}
+                branch = ncua_states(c["charterNumber"])
+                return {"st": branch or [c["state"]], "stSrc": "branches" if branch else "hq",
+                        "stInst": f"{c['name'].title()} (NCUA #{c['charterNumber']})", "stHow": how}
     return None
 
 
@@ -160,17 +211,23 @@ def name_states(name):
     return sorted(set(codes)) if codes and all(c in STATES for c in codes) else None
 
 
-def locate(offers, prev, norm, budget=60, today=None):
+def locate(offers, prev, norm, budget=250, today=None, fetch=None, link_ok=None, seconds=180):
     """Fill st for offers whose states are unknown. Returns (located, looked_up)."""
     today = today or dt.date.today()
     old = {p["id"]: p for p in prev if p.get("id")}
     found = looked = 0
+    stop = time.monotonic() + seconds
     for o in offers:
         if o.get("st") != "?" or o.get("custom"):
             continue
         named = name_states(o["b"])
         if named:
             o.update(st=named, stSrc="name")
+            found += 1
+            continue
+        art = article_states(o)
+        if art:
+            o.update(st=art, stSrc="article")
             found += 1
             continue
         p = old.get(o["id"]) or {}
@@ -181,14 +238,18 @@ def locate(offers, prev, norm, budget=60, today=None):
             else:
                 o["stOn"] = p["stOn"]  # looked up recently and not found: don't retry yet
             continue
-        if looked >= budget:
+        if looked >= budget or time.monotonic() > stop:  # the rest wait for the next hourly run
             continue
         looked += 1
         try:
+            if fetch and link_ok and not own_domains(o):
+                o["_articleDomains"] = sorted(article_domains(o, fetch, link_ok))
             r = locate_one(o, norm)
         except Exception as e:  # a lookup failure leaves the offer as it was and retries next run
             print(f"  locate failed for {o['b']}: {type(e).__name__}")
             continue
+        finally:
+            o.pop("_articleDomains", None)
         o["stOn"] = today.isoformat()
         if r:
             o.update(r)

@@ -65,7 +65,7 @@ NOT_CHECKING = r"\b(?:certificate|\bcds?\b|money market|savings account|credit c
 SKIP_URL = re.compile(r"\.(?:pdf|jpe?g|png|gif|svg|zip|docx?|xlsx?|mp4)(?:$|\?)|/(?:careers?|jobs|investor|news|press|blog/page|login|sign-?in|privacy|terms)\b", re.I)
 # promotions for other audiences or products, judged from the page address
 NOT_FOR_NEW = re.compile(r"student|high[-_]?school|youth|teen|kids?\b|college|existing[-_]?(?:customer|member)|returning|smart[-_]?card|debit[-_]?card|"
-                         r"business|commercial|referr?al|refer[-_]?a|sweepstakes|giveaway|contest|credit[-_]?card|mortgage|heloc|auto[-_]?loan", re.I)
+                         r"savings[-_]?accounts?/|business|commercial|referr?al|refer[-_]?a|sweepstakes|giveaway|contest|credit[-_]?card|mortgage|heloc|auto[-_]?loan", re.I)
 # the same, judged from the words next to the amount
 NOT_FOR_NEW_TEXT = r"\b(?:students?|high school|youth|teens?|under (?:age )?18|minors?|existing (?:customers|members|account holders)|current (?:customers|members)|" \
                    r"sweepstakes|chance to win|no purchase necessary|giveaway|debit card (?:promotion|promo))\b"
