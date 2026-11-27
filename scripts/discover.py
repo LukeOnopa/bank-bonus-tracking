@@ -63,6 +63,13 @@ URL_WORDS = [(r"bonus", 5), (r"promo", 4), (r"special[-_ ]?offer|offers?\b", 3),
 # pages about other products; a bonus there isn't a checking bonus
 NOT_CHECKING = r"\b(?:certificate|\bcds?\b|money market|savings account|credit card|business|commercial|mortgage|home equity|heloc|auto loan|refer(?:ral|-a-friend| a friend))\b"
 SKIP_URL = re.compile(r"\.(?:pdf|jpe?g|png|gif|svg|zip|docx?|xlsx?|mp4)(?:$|\?)|/(?:careers?|jobs|investor|news|press|blog/page|login|sign-?in|privacy|terms)\b", re.I)
+# promotions for other audiences or products, judged from the page address
+NOT_FOR_NEW = re.compile(r"student|high[-_]?school|youth|teen|kids?\b|college|existing[-_]?(?:customer|member)|returning|smart[-_]?card|debit[-_]?card|"
+                         r"business|commercial|referr?al|refer[-_]?a|sweepstakes|giveaway|contest|credit[-_]?card|mortgage|heloc|auto[-_]?loan", re.I)
+# the same, judged from the words next to the amount
+NOT_FOR_NEW_TEXT = r"\b(?:students?|high school|youth|teens?|under (?:age )?18|minors?|existing (?:customers|members|account holders)|current (?:customers|members)|" \
+                   r"sweepstakes|chance to win|no purchase necessary|giveaway|debit card (?:promotion|promo))\b"
+TRACKING = re.compile(r"[?&](?:utm_[a-z]+|icid|gclid|fbclid|mc_[a-z]+|cid|src)=[^&#]*", re.I)
 
 _print_lock = threading.Lock()
 
@@ -213,6 +220,12 @@ def url_score(url, text=""):
     return score
 
 
+def clean_url(u):
+    """Drop tracking codes so the same page isn't counted twice."""
+    u = TRACKING.sub("", u.split("#")[0])
+    return u.replace("?&", "?").rstrip("?&")
+
+
 def same_site(url, root):
     h, r = (urlparse(url).hostname or "").lower(), urlparse(root).hostname
     return h == r or h.removeprefix("www.") == r.removeprefix("www.") or h.endswith("." + r.removeprefix("www."))
@@ -262,7 +275,12 @@ def candidates(root, robots, pause):
         raise
     except Exception:
         home = None
-    ranked = sorted(scored, key=lambda u: (-scored[u], len(u)))
+    best = {}
+    for u, sc in scored.items():  # same page with different tracking codes counts once; skip pages for other audiences
+        cu = clean_url(u)
+        if not NOT_FOR_NEW.search(urlparse(cu).path):
+            best[cu] = max(best.get(cu, 0), sc)
+    ranked = sorted(best, key=lambda u: (-best[u], len(u)))
     return [u for u in ranked if robots.can_fetch(UA, u)][:MAX_PAGES], home
 
 
@@ -305,6 +323,8 @@ def extract(url, html):
             continue
         if re.search(r"\b(?:apy|interest rate|cash back on|per referral|for each friend)\b", near, re.I):
             continue
+        if re.search(NOT_FOR_NEW_TEXT, near, re.I) or re.search(r"sweepstakes|no purchase necessary|chance to win", win, re.I):
+            continue
         req = parse_reqs(plain(win))
         conf = 1 + bool(req.get("dd") or req.get("tx")) + bool(req.get("win")) + bool(re.search(r"new (?:checking )?(?:account|customer|member)|open a", win, re.I))
         if req.get("exp") and req["exp"] < TODAY:
@@ -330,6 +350,34 @@ def read_robots(root, pause):
     except Exception:
         rp.parse([])  # no robots.txt: everything allowed
     return rp
+
+
+def combine(finds):
+    """One find per offer page, with every amount on it as tiers; then drop pages that repeat another's amounts."""
+    pages = {}
+    for f in finds:
+        pages.setdefault(clean_url(f["url"]), []).append(f)
+    out = []
+    for url, fs in pages.items():
+        top = max(fs, key=lambda f: (f["amt"], len(f)))
+        rich = max(fs, key=lambda f: (len(f), f["conf"] == "high"))
+        g = {**{k: v for k, v in rich.items() if k not in ("amt", "snippet", "url")}, "amt": top["amt"], "url": url, "snippet": top["snippet"]}
+        g["conf"] = max((f["conf"] for f in fs), key=["low", "medium", "high"].index)
+        tiers = sorted({f["amt"] for f in fs})
+        if len(tiers) > 1:
+            g["tiers"] = tiers
+        if g.get("dd") == 1:  # direct deposit needed, amount not found on the page
+            del g["dd"]
+            g["ddAmountUnknown"] = True
+        out.append(g)
+    seen, result = set(), []
+    for g in sorted(out, key=lambda g: (-g["amt"], -len(g))):
+        key = tuple(g.get("tiers") or [g["amt"]])
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(g)
+    return result
 
 
 def crawl_site(inst, prev_site, deadline):
@@ -373,11 +421,7 @@ def crawl_site(inst, prev_site, deadline):
             statuses.append(st)
             rec["pages"][u] = {"status": st, "hash": h, "changed": TODAY if old_pages.get(u, {}).get("hash") != h else old_pages[u].get("changed", TODAY)}
             finds += got
-        best = {}
-        for f in finds:  # the same offer often appears on several pages; keep the most detailed copy
-            if f["amt"] not in best or (len(f), f["conf"] == "high") > (len(best[f["amt"]]), best[f["amt"]]["conf"] == "high"):
-                best[f["amt"]] = f
-        rec["finds"] = sorted(best.values(), key=lambda f: -f["amt"])
+        rec["finds"] = combine(finds)
         rec["status"] = "found" if finds else "no-pages" if not urls else "needs-browser" if statuses and all(s == "needs-browser" for s in statuses) else "no-bonus"
         return rec
     except Blocked as e:
@@ -409,18 +453,61 @@ def load_prev(src):
         return {}
 
 
-def known_banks():
+def load_offers(src):
+    """Offers the site already lists: data/curated.json plus the live offers.json (URL or path) if given."""
+    offers = []
     try:
         with open(os.path.join(ROOT, "data", "curated.json")) as f:
-            return {norm(o["b"]) for o in json.load(f)}
+            offers += json.load(f)
     except Exception:
-        return set()
+        pass
+    if src:
+        try:
+            body = get(src, accept="application/json", limit=50_000_000)[1] if re.match(r"https?://", src) else open(src).read()
+            offers += json.loads(body).get("offers", [])
+        except Exception as e:
+            log(f"Couldn't read the live offers ({type(e).__name__}); 'new' is judged against the curated list only.")
+    return offers
+
+
+def host_base(u):
+    h = (urlparse(u if "://" in (u or "") else "https://" + (u or "")).hostname or "").lower()
+    return ".".join(h.split(".")[-2:]) if h else ""
+
+
+def match_known(inst, offers):
+    """The listed offer for this institution, if any: same website, same name, or one name inside the other
+    (Think Mutual Bank / Think Bank, Maxx by Cedar Rapids Bank & Trust / Cedar Rapids Bank and Trust)."""
+    n, site = norm(inst["name"]), host_base(inst.get("site"))
+    for o in offers:
+        st = o.get("st")
+        overlap = st in ("ALL", "?", None) or bool(set(st) & set(inst.get("states") or []))
+        hosts = {host_base(u) for u in (o.get("offerUrl"), o.get("url")) if u}
+        on = norm(o.get("b", ""))
+        if site and site in hosts:
+            return o
+        if on and on == n and overlap:
+            return o
+        short, long_ = sorted((on, n), key=len)
+        if len(short) >= 5 and short in long_ and overlap:
+            return o
+    return None
+
+
+def known_fields(o, f):
+    if not o:
+        return {"known": False}
+    out = {"known": True, "knownAs": o.get("id")}
+    if o.get("amt") and o["amt"] not in (f.get("tiers") or [f["amt"]]):
+        out["knownAmt"] = o["amt"]  # the bank's page shows a different amount than the list
+    return out
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out", default=os.path.join(ROOT, "site", "data", "discovered.json"))
     ap.add_argument("--prev", default=None, help="previous discovered.json (URL or path)")
+    ap.add_argument("--offers", default=None, help="the site's live offers.json (URL or path), to tell new banks from listed ones")
     ap.add_argument("--states", default=",".join(PILOT_STATES))
     ap.add_argument("--minutes", type=float, default=5, help="time budget for crawling")
     ap.add_argument("--workers", type=int, default=8, help="sites crawled at once (each site is still one request at a time)")
@@ -461,7 +548,7 @@ def main(argv=None):
             tag = f"{len(rec.get('finds') or [])} bonus(es)" if rec["status"] == "found" else rec["status"]
             log(f"  {inst['name'][:40]:40} {inst.get('site') or '-':45} {tag}")
 
-    known = known_banks()
+    listed = load_offers(a.offers)
     by_id = {i["id"]: i for i in items}
     finds = []
     for iid, s in sites.items():
@@ -470,7 +557,7 @@ def main(argv=None):
             continue
         for f in s.get("finds") or []:
             finds.append({"inst": iid, "bank": inst["name"], "kind": inst["kind"], "states": inst["states"], "site": inst["site"],
-                          "known": norm(inst["name"]) in known, "checked": s["checked"][:10], **f})
+                          "checked": s["checked"][:10], **f, **known_fields(match_known(inst, listed), f)})
     finds.sort(key=lambda f: (f["known"], {"high": 0, "medium": 1, "low": 2}[f["conf"]], -f["amt"]))
     counts = {}
     for s in sites.values():
@@ -485,9 +572,13 @@ def main(argv=None):
         json.dump(out, f, separators=(",", ":"))
     log(f"Crawled {done} sites in {(time.monotonic() - start) / 60:.1f} min. "
         f"{len(sites)}/{len(items)} checked so far. Status: {counts}. Bonuses found: {len(finds)} "
-        f"({out['summary']['new_banks']} banks not in the curated list).")
+        f"({out['summary']['new_banks']} banks the site doesn't list yet).")
     for f in finds[:25]:
-        log(f"  {'NEW ' if not f['known'] else '    '}{f['conf']:6} ${f['amt']:<5} {f['bank'][:36]:36} dd={f.get('dd', '-')} win={f.get('win', '-')} {f['url']}")
+        tiers = "/".join(f"${t}" for t in f.get("tiers") or [f["amt"]])
+        dd = "?" if f.get("ddAmountUnknown") else f.get("dd", "-")
+        tag = "NEW " if not f["known"] else ("DIFF" if f.get("knownAmt") else "    ")
+        log(f"  {tag} {f['conf']:6} {tiers:<11} {f['bank'][:34]:34} dd={dd} win={f.get('win', '-')} {f['url']}"
+            + (f"  (listed as {f['knownAs']}" + (f", ${f['knownAmt']})" if f.get("knownAmt") else ")") if f["known"] else ""))
     return 0
 
 
