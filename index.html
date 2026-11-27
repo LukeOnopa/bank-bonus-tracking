@@ -290,13 +290,17 @@ div.tl-name{cursor:default}
 .inav{display:flex;justify-content:space-between;gap:10px;padding:16px 24px 22px;border-top:1px solid var(--rule);background:color-mix(in srgb,var(--paper) 50%,var(--sheet))}
 .btn:disabled{opacity:.45;cursor:not-allowed}
 .iq.err b{color:var(--brick)}
-.iq.err input,.iq.err select,.iq.err .seg2,.iq.err .bankgrid{border-color:var(--brick);box-shadow:0 0 0 1px var(--brick)}
+.iq.err input,.iq.err select,.iq.err .seg2,.iq.err .bankgrid-wrap{border-color:var(--brick);box-shadow:0 0 0 1px var(--brick)}
 .iq.err .bankgrid{border-radius:12px;padding:6px;border:1px solid var(--brick)}
 .errmsg{margin:8px 0 0;font-size:14px;font-weight:600;color:var(--brick)}.errmsg::before{content:"! ";}
 .ierr,.ihint{margin:0;flex:1;text-align:right;font-size:14px;align-self:center}
 .ierr{color:var(--brick);font-weight:600}.ihint{color:var(--mute)}
 .isteps .locked button{opacity:.5;cursor:not-allowed}
 .check.none{margin-top:12px}
+.bankgrid-wrap{max-height:460px;overflow:auto;margin-top:12px;padding-right:4px;scrollbar-width:thin}
+.bgh{font:600 14px var(--sans);margin:14px 0 8px;color:var(--ink)}.bgh:first-child{margin-top:0}.bgh span{color:var(--mute);font-weight:400;margin-left:4px}
+.bankadd{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:12px}.bankadd input{margin:0}
+
 
 @media(max-width:700px){.iq{grid-template-columns:minmax(0,1fr);gap:10px}.ihead,.ibody{padding-left:16px;padding-right:16px}.inav{padding:14px 16px}}
 @media(prefers-reduced-motion:reduce){.toast,.card,.more summary::before{transition:none}}
@@ -854,8 +858,14 @@ function planHtml(P){const p=S.profile,sum=P.reduce((s,x)=>s+x.o.amt,0);
  const rules=[`live in ${esc(p.state)}`,`${money(+p.ddCap||0)} a month of paycheck split up to ${+p.splits||3} ways`,`up to ${+p.pace||2} new account${(+p.pace||2)===1?"":"s"} a month`,p.transfers?"transfers count where they're known to work":"real paychecks only",p.onlySure!==false?"only offers you definitely qualify for":"uncertain offers included"];
  return `<section class="panel planbox"><div><h3>Your plan for the next 6 months</h3><p class="note">${P.length?`Following the suggested schedule could earn about <b>${money(sum)}</b> from ${P.length} new account${P.length===1?"":"s"}.`:`No new applications fit your answers right now. Try allowing more accounts a month, a bigger paycheck amount, or uncertain offers.`} Based on your answers: ${rules.join(", ")}.</p></div>
  <button class="btn ghost" data-act="iedit">Change my answers</button></section>`}
-let ISTEP=0,IEDIT=false,ERRSTEP=-1;
-function bankList(){const seen=new Map();for(const o of OFFERS.filter(o=>!o.auto))if(!seen.has(bkey(o.b)))seen.set(bkey(o.b),o.b);return [...seen].sort((a,b)=>a[1].localeCompare(b[1]))}
+let ISTEP=0,IEDIT=false,ERRSTEP=-1,BQ="";
+// banks that have a bonus you could get where you live, plus anything you've already marked
+function bankList(){const p=S.profile,st=p.state,M=new Map();
+ for(const o of all()){if(o.mil&&p.mil!==true)continue;if(o.exp&&o.exp<today())continue;
+  const nat=o.st==="ALL",here=Array.isArray(o.st)&&o.st.includes(st);if(!nat&&!here)continue;
+  const k=bkey(o.b),cur=M.get(k);if(!cur||(cur.auto&&!o.auto))M.set(k,{k,n:o.b,nat:cur?cur.nat&&nat:nat,auto:!!o.auto});else if(!nat)cur.nat=false}
+ for(const k of Object.keys(p.banks||{}))if(!M.has(k))M.set(k,{k,n:(p.bankNames||{})[k]||all().find(o=>bkey(o.b)===k)?.b||k,nat:false,other:true});
+ return [...M.values()].sort((a,b)=>a.n.localeCompare(b.n))}
 const ISTEPS=["Where you bank","Your paycheck","Money and credit","Banks you've used","Pace and ChexSystems"];
 // what each step needs; a question counts as answered only once you've answered it here (or finished setup before)
 const IQ=[[["state","Choose your state."],["branch","Choose Yes or No."],["mil","Choose Yes or No."]],
@@ -882,8 +892,17 @@ function intake(){const p=S.profile,err=ERRSTEP===ISTEP?missing(ISTEP):[],bad=ne
  if(ISTEP===2)body=q("cash","How much cash could you leave in a new account for a few months?","Some bonuses need a deposit instead of a paycheck.",num("cash",+p.cash||0,500))
   +q("noHard","Is a hard credit check OK?","It can lower your credit score a few points for a while. Most checking accounts only do a soft check.",yn("noHard","Avoid hard checks","Fine with me"))
   +q("noFee","Skip accounts with monthly fees that are hard to avoid?","Most fees can be waived with a minimum balance or a direct deposit.",yn("noFee","Yes, skip them","No, I'll manage"));
- if(ISTEP===3){const B=bankList(),rel=p.banks||{};body=`<div class="iq wide${bad.has("banks")?" err":""}" data-q="banks"><div><b id="q-banks">Which of these banks do you use now, or have closed in the last 2 years?</b><p class="note">Bonuses are almost always for new customers. Tap once for "have it now," twice for "closed recently," and a third time to clear.</p></div>
-  <div class="bankgrid" role="group" aria-labelledby="q-banks">${B.map(([k,n])=>`<button class="bk ${rel[k]||""}" data-act="bank" data-k="${esc(k)}" aria-pressed="${!!rel[k]}">${esc(n)}<small>${rel[k]==="have"?"Have it now":rel[k]==="recent"?"Closed recently":""}</small></button>`).join("")}</div>
+ if(ISTEP===3){const all_=bankList(),rel=p.banks||{},ql=BQ.trim().toLowerCase(),B=ql?all_.filter(b=>b.n.toLowerCase().includes(ql)):all_;
+  const chip=b=>`<button class="bk ${rel[b.k]||""}" data-act="bank" data-k="${esc(b.k)}" aria-pressed="${!!rel[b.k]}">${esc(b.n)}<small>${rel[b.k]==="have"?"Have it now":rel[b.k]==="recent"?"Closed recently":""}</small></button>`;
+  const loc=B.filter(b=>!b.nat&&!b.other),nat=B.filter(b=>b.nat),oth=B.filter(b=>b.other);
+  body=`<div class="iq wide${bad.has("banks")?" err":""}" data-q="banks"><div><b id="q-banks">Which of these banks do you use now, or have closed in the last 2 years?</b><p class="note">These are the banks with a bonus you could get in ${esc(p.state||"your state")}. Bonuses are almost always for new customers. Tap once for "have it now," twice for "closed recently," and a third time to clear.</p></div>
+  <input type="search" data-act="bq" data-k="bq" value="${esc(BQ)}" placeholder="Search ${all_.length} banks" aria-label="Search banks">
+  <div class="bankgrid-wrap" role="group" aria-labelledby="q-banks">
+  ${loc.length?`<h4 class="bgh">Banks and credit unions in ${esc(p.state)} <span>${loc.length}</span></h4><div class="bankgrid">${loc.map(chip).join("")}</div>`:""}
+  ${nat.length?`<h4 class="bgh">Online and nationwide <span>${nat.length}</span></h4><div class="bankgrid">${nat.map(chip).join("")}</div>`:""}
+  ${oth.length?`<h4 class="bgh">Added by you</h4><div class="bankgrid">${oth.map(chip).join("")}</div>`:""}
+  ${!B.length?`<p class="note">No bank named "${esc(BQ)}" has a bonus in ${esc(p.state)}. If you use it, add it below so it's never suggested.</p>`:""}</div>
+  <div class="bankadd"><input type="text" id="bankadd" placeholder="Add a bank that isn't listed" aria-label="Bank name to add"><button class="btn ghost" data-act="bankadd">Add</button></div>
   <label class="check none"><input type="checkbox" data-act="nobanks"${p.noBanks&&(p.ia||{}).banks?" checked":""}> None of these. I haven't used any of these banks in the last 2 years.</label>
   ${bad.has("banks")?`<p class="errmsg">${esc(err[0][1])}</p>`:""}</div>`}
  if(ISTEP===4)body=q("pace","How many new accounts a month are you comfortable opening?","Opening too many at once can get you turned down at banks that count recent applications.",sel("pace",[1,2,3,4,5]))
@@ -1043,6 +1062,8 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data
   ERRSTEP=-1;if(a==="inext"){ISTEP++;render();$("#view .intake")?.scrollIntoView({block:"start",behavior:RM.matches?"auto":"smooth"});$("#view .ibody input,#view .ibody select,#view .ibody .bk")?.focus({preventScroll:true});return}}
  if(a==="idone"){S.profile.intakeDone=true;S.profile.u=now();IEDIT=false;ISTEP=0;save();render();window.scrollTo({top:0,behavior:RM.matches?"auto":"smooth"});toast("Plan ready");return}
  if(a==="iedit"){IEDIT=true;ISTEP=0;render();$("#view .intake")?.scrollIntoView({block:"start"});return}
+ if(a==="bankadd"){const n=($("#bankadd")?.value||"").trim();if(!n)return;const k=bkey(n),B=S.profile.banks=S.profile.banks||{};B[k]=B[k]||"have";S.profile.bankNames={...(S.profile.bankNames||{}),[k]:n};
+  S.profile.ia={...(S.profile.ia||{}),banks:true};S.profile.noBanks=false;S.profile.u=now();BQ="";save();render();toast(`Added ${n}`);return}
  if(a==="bank"){const k=b.dataset.k,B=S.profile.banks=S.profile.banks||{};B[k]=!B[k]?"have":B[k]==="have"?"recent":undefined;if(!B[k])delete B[k];
   S.profile.ia={...(S.profile.ia||{}),banks:true};if(Object.keys(B).length)S.profile.noBanks=false;S.profile.u=now();save();render();$(`#view .bk[data-k="${CSS.escape(k)}"]`)?.focus();return}
  if(a==="planall"){PLANALL=!PLANALL;render();return}
@@ -1056,7 +1077,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data
  if(a==="del"){S.custom=S.custom.filter(c=>c.id!==b.dataset.id);S.gone=[...(S.gone||[]),b.dataset.id];S.track[b.dataset.id]={u:now()};save();render()}
  if(a==="copy"){navigator.clipboard.writeText(JSON.stringify(S)).then(()=>toast("Backup copied"),()=>toast("Copy blocked — select the restore box text instead"))}
  if(a==="imp"){try{const n=JSON.parse($("#imp").value);if(!n.profile||!n.track)throw 0;const u=now();n.profile.u=u;for(const k in n.track)n.track[k].u=u;S={...S,...n};save();render();toast("Restored")}catch(x){toast("That doesn't look like a backup")}}});
-document.addEventListener("input",e=>{const el=e.target;if(el.dataset.act==="f"&&el.dataset.k==="q"){F.q=el.value;render()}});
+document.addEventListener("input",e=>{const el=e.target;if(el.dataset.act==="bq"){BQ=el.value;render();return}if(el.dataset.act==="f"&&el.dataset.k==="q"){F.q=el.value;render()}});
 document.addEventListener("change",e=>{const el=e.target,a=el.dataset.act;if(!a)return;
  if(el.closest&&el.closest(".intake")&&el.dataset.k)S.profile.ia={...(S.profile.ia||{}),[el.dataset.k]:el.value!==""};
  if(a==="status")return setStatus(el.dataset.id,el.value,el);
@@ -1072,6 +1093,7 @@ document.addEventListener("dragover",e=>{if(e.target.closest&&e.target.closest("
 document.addEventListener("dragleave",e=>{const z=e.target.closest&&e.target.closest(".chexdrop");if(z)z.style.borderColor=""});
 document.addEventListener("drop",e=>{const z=e.target.closest&&e.target.closest(".chexdrop");if(!z)return;e.preventDefault();z.style.borderColor="";const f=e.dataTransfer.files[0];if(f)readFile(f)});
 function refreshChex(){if(S.profile.chexAuto&&Array.isArray(S.profile.chexInq))S.profile.chex=countsFrom(S.profile.chexInq)}
+document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="bankadd"){e.preventDefault();document.querySelector('[data-act="bankadd"]')?.click()}});
 document.addEventListener("toggle",e=>{const d=e.target;if(d.id==="side"&&!matchMedia("(min-width:1081px)").matches)SIDE_OPEN=d.open;if(d.dataset&&d.dataset.det)d.open?OPEN.add(d.dataset.det):OPEN.delete(d.dataset.det)},true);
 document.addEventListener("submit",e=>{if(e.target.id!=="add")return;e.preventDefault();const f=new FormData(e.target),n=k=>f.get(k)===""?null:+f.get(k);
  const st=String(f.get("st")||"").toUpperCase().split(/[^A-Z]+/).filter(s=>STATES.includes(s));
