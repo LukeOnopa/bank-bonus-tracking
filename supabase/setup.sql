@@ -33,3 +33,5 @@ alter table public.site_data enable row level security;
 drop policy if exists "Anyone can read site data" on public.site_data;
 create policy "Anyone can read site data" on public.site_data for select using (true);
 grant select on public.site_data to anon, authenticated;
+-- the Edge Function saves with Supabase's service role; newer projects don't grant it table access automatically
+grant select, insert, update on public.site_data to service_role;
