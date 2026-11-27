@@ -20,6 +20,8 @@ jobs:
         run: python tests/test_scrape.py
       - name: Crawler tests
         run: python tests/test_discover.py
+      - name: Location lookup tests
+        run: python tests/test_locate.py
 
       - uses: actions/setup-node@v4
         with:

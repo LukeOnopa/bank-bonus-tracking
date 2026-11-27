@@ -28,6 +28,8 @@ jobs:
       - run: pip install beautifulsoup4==4.12.3
       - name: Test the scraper
         run: python tests/test_scrape.py
+      - name: Test the location lookup
+        run: python tests/test_locate.py
       - id: pages
         uses: actions/configure-pages@v5
       - name: Scrape offers and build the site

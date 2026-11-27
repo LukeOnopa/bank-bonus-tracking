@@ -24,6 +24,9 @@ from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from locate import locate  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TODAY = dt.date.today().isoformat()
 NOW = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
@@ -507,6 +510,12 @@ def main():
         offers = prev  # every source failed: republish last good data untouched
     else:
         offers = merge(curated, scraped, prev, ok)
+    if os.environ.get("SKIP_LOCATE") != "1":
+        try:
+            found, looked = locate(offers, prev, norm)
+            print(f"Located {found} offers with unknown states ({looked} looked up this run)")
+        except Exception as e:  # never let this block the refresh
+            print("Locating offers failed:", e)
     if os.environ.get("SKIP_VERIFY") != "1":
         n = verify(offers, prev)
         print(f"Checked {n} offer pages against their listed bonus")

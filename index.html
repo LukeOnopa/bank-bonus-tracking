@@ -126,6 +126,12 @@ abbr[title]{text-decoration:underline dotted;text-underline-offset:3px;cursor:he
 .facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px;margin:0;padding:14px 0 0;border-top:1px solid var(--rule)}
 .facts dt{font-size:12px;color:var(--mute)}.facts dd{margin:2px 0 0;font-size:14px;font-weight:500}
 .facts .muted{color:var(--mute);font-weight:400}
+.stl summary{cursor:pointer;color:var(--green);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;list-style:none;display:inline-flex;align-items:center;gap:4px;min-height:24px}
+.stl summary::-webkit-details-marker{display:none}.stl summary::after{content:"▾";font-size:11px;transition:transform .15s}.stl[open] summary::after{transform:rotate(180deg)}
+.facts>div:has(details.stl[open]){grid-column:1/-1}
+.stl ul{list-style:none;margin:6px 0 0;padding:8px 10px;max-height:190px;overflow:auto;columns:auto 9.5em;column-gap:14px;font-size:13px;font-weight:400;background:var(--field);border:1px solid var(--rule);border-radius:8px}
+.stl li{break-inside:avoid;padding:1px 0}.stl li.me{font-weight:700;color:var(--ink)}
+.stsrc{display:block;font-size:12px;font-weight:400;color:var(--mute)}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px;background:var(--mute)}.dot.o5{background:var(--green)}.dot.o3{background:var(--warn)}.dot.o1{background:var(--brick)}
 .heads{margin:0;font-size:14px;padding:10px 14px;background:var(--goldsoft);border-radius:10px;color:var(--ink)}
 .heads b{color:var(--gold)}
@@ -619,11 +625,19 @@ function steps(o){const L=[],win=o.win&&o.win<365?` within ${o.win} days`:"";
  if(o.tx)L.push(`Make <b>${o.tx} debit card purchases</b>${win}.`);
  L.push(o.keep?`Keep it open at least <b>${o.keep} days</b> — then you can close it.`:`Keep it open about <b>6 months</b> before closing (the terms don't give an exact time).`);
  return `<ol class="steps">${L.map(x=>`<li><span>${x}</span></li>`).join("")}</ol>`}
+const STNAME={AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",DC:"Washington, D.C.",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming"};
+// "Where" on a card: every state by name; long lists open from a summary line
+function whereHtml(o){if(o.st==="ALL")return "Anywhere in the US";
+ if(!Array.isArray(o.st)||!o.st.length)return `<span class="muted">Not listed by the bank — check the offer page</span>`;
+ const me=S.profile.state,src=o.stSrc==="branches"?`<span class="stsrc">Where it has branches</span>`:o.stSrc==="hq"?`<span class="stsrc">Where it's based — check who can join</span>`:"";
+ const names=[...o.st].sort((a,b)=>(STNAME[a]||a).localeCompare(STNAME[b]||b));
+ if(names.length<=3)return names.map(x=>esc(STNAME[x]||x)).join(", ")+src;
+ return `<details class="stl"><summary>${names.length} states${me&&o.st.includes(me)?`, including ${esc(STNAME[me]||me)}`:""}</summary><ul>${names.map(x=>`<li${x===me?' class="me"':""}>${esc(STNAME[x]||x)}</li>`).join("")}</ul></details>${src}`}
 function facts(o){const od=odds(o),cl=chexLbl(o),dl=ddLbl(o),F=[];
  const fee=!o.fee||/see terms|varies|^—$/i.test(o.fee)?"Check the terms":/^none$/i.test(o.fee)?"None":esc(o.fee).replace(/,\s*waivable/i," a month (can be waived)").replace(/^(\$[\d.]+)$/,"$1 a month");
  F.push(["Monthly fee",fee]);
  F.push(["Credit check",{soft:"Soft — won't affect your score",hard:"Hard — may dip your score a little",varies:"Usually soft (some report hard)"}[o.pull]||"Not listed"]);
- F.push(["Where",o.st==="ALL"?"Anywhere in the US":o.st==="?"?"Check the offer page":o.st.length>6?`<span title="${esc(o.st.join(", "))}">${o.st.length} states${S.profile.state&&o.st.includes(S.profile.state)?" incl. "+esc(S.profile.state):""}</span>`:esc(o.st.join(", "))]);
+ F.push(["Where",whereHtml(o)]);
  F.push(["Offer ends",o.exp?fmt(o.exp):"No end date listed"]);
  F.push(["Earn it again",o.cd===-1?"Once per person":o.cd!=null?`Every ${o.cd} months`:"Not stated (often 1–2 yrs)"]);
  F.push(["Approval odds",od?`<span class="dot ${oddsLbl(od.p)[1]}"></span>${oddsLbl(od.p)[0]}, about ${od.p}%`:`<span class="muted">${cl[0].replace(/^Chex: /,"ChexSystems: ")}</span>`]);
