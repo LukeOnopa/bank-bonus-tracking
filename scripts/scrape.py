@@ -185,7 +185,8 @@ def parse_doc(html):
         o = {"b": name, "amt": max(amts), "src": "doc", "heading": txt,
              "st": st if st else ("ALL" if "checking" in section and "state" not in section else "?"),
              "req": bodytxt[:240], "url": next((u for u in (links.get("direct"), links.get("post")) if u and u.startswith("https://")), DOC_URL)}
-        o["srcUrl"] = links.get("post") if (links.get("post") or "").startswith("https://") else DOC_URL
+        post = links.get("post") or ""
+        o["srcUrl"] = post if post.startswith("https://") and article_about_bank(name, post) else DOC_URL
         o.update(parse_reqs(bodytxt))
         if re.search(r"in branch", txt, re.I):
             o["branch"] = 1
@@ -293,6 +294,14 @@ def link_matches_bank(bank, url):
     return len(initials) >= 3 and any(lbl.startswith(initials) for lbl in labels)
 
 
+def article_about_bank(bank, url):
+    """True if a blog post URL's slug mentions this bank (catches a neighbouring offer's 'full post' link)."""
+    path = re.sub(r"[^a-z0-9]", "", urlparse(url).path.lower())
+    words = [w for w in re.findall(r"[a-z0-9]+", clean(bank).lower()) if w not in NAME_STOP and len(w) >= 3]
+    n = norm(bank)
+    return bool((n and len(n) >= 3 and n in path) or any(w in path for w in words))
+
+
 def page_amounts(html):
     """Dollar amounts the page ties to a bonus/reward/offer."""
     soup = BeautifulSoup(html, "html.parser")
@@ -310,7 +319,7 @@ def page_amounts(html):
 
 
 def check_one(o):
-    url = o.get("offerUrl") or (o.get("url") if not o.get("auto") else None)
+    url = o.get("offerUrl")  # only real offer pages; a homepage shows unrelated amounts
     rec = {"on": TODAY, "url": url}
     if not url:
         return dict(rec, status="no-link")
@@ -344,7 +353,7 @@ def verify(offers, prev, budget=40, max_age_days=1):
     due = []
     for o in offers:
         old = prev_chk.get(o["id"]) or prev_chk.get("bank:" + norm(o["b"]))
-        url_now = o.get("offerUrl") or (o.get("url") if not o.get("auto") else None)
+        url_now = o.get("offerUrl")
         if old and old.get("url") == url_now:
             o["check"] = old
             age = (dt.date.today() - dt.date.fromisoformat(old["on"])).days

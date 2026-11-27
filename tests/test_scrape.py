@@ -30,6 +30,7 @@ DOC = """<html><body><div class="entry-content">
 <h3>Acme Bank $400 Business Checking</h3><p>Business.</p>
 <h3>Community First Credit Union $300 - FL</h3>
 <p>Open a checking account with direct deposit.</p>
+<ul><li><a href="https://www.doctorofcredit.com/oh-union-savings-bank-304-checking-bonus/">Read our full post</a></li></ul>
 <div class="wrap"><h4>Union Savings Bank $304</h4><p><a href="https://www.unionsavings.com/personal-checking/304-checking-bonus/">Direct link to offer</a></p></div>
 </div></body></html>"""
 
@@ -117,7 +118,9 @@ def test():
     for b, u in bad:
         assert not L(b, u), ("should reject", b, u)
     cf = {o["b"]: o for o in scrape.parse_doc(DOC)}["Community First Credit Union"]
-    assert "unionsavings" not in cf["url"], ("a neighbouring offer's link leaked in", cf["url"])
+    assert "unionsavings" not in cf["url"] and "union-savings" not in cf["srcUrl"], ("a neighbouring offer's link leaked in", cf)
+    assert scrape.article_about_bank("Chase", "https://www.doctorofcredit.com/chase-900/")
+    assert scrape.check_one({"b": "Current", "amt": 100, "url": "https://current.com"})["status"] == "no-link", "homepages are not checked"
 
     # ---- bank-page amount check (simulated pages) ----
     pages = {"https://www.bmo.com/ok": "<p>" + "Open a Smart Advantage account today. " * 20 + "Get a $650 bonus when you set up direct deposit.</p>",
