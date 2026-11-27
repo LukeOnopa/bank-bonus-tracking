@@ -43,17 +43,34 @@ def clean(s):
     return re.sub(r"\s+", " ", (s or "").replace("–", "-").replace("—", "-").replace("\xa0", " ")).strip()
 
 
-ALIASES = {"charlesschwab": "schwab", "citibank": "citi", "bmoharris": "bmo", "usbancorp": "us", "verveacu": "verve", "vervecu": "verve",
-           "fourleaffcu": "fourleaf", "bethpagefcu": "fourleaf", "53": "fifththird", "pncvirtualwallet": "pnc", "keybanknationalassociation": "key", "keybank": "key"}
+ALIASES = {"charlesschwab": "schwab", "citibank": "citi", "bmoharris": "bmo", "usbancorp": "us", "verve": "verve",
+           "bethpage": "fourleaf", "53": "fifththird", "pncvirtualwallet": "pnc", "keybank": "key", "keybanknational": "key",
+           "capitalone360": "capitalone", "secumaryland": "secu", "trustonefinancial": "trustone", "chaseprivateclient": "chase",
+           "huntingtonnational": "huntington", "wellsfargobank": "wellsfargo", "td": "td", "tdbank": "td", "citizensbank": "citizens"}
+GENERIC = r"\b(the|banks?|n\.?a\.?|national association|financial|group|company|co|inc|corp|federal credit union|credit union|fcu|cu|federal|" \
+          r"checking|savings|account|accounts|bonus|bonuses|and|a|by|personal|online|new)\b"
 
 
 def norm(name):
+    """Reduce a bank name to a matching key: 'Navy Federal Credit Union' and 'Navy Federal CU' -> 'navy'."""
     s = clean(name).lower()
     s = re.sub(r"\(.*?\)|\[.*?\]", " ", s).replace("&", " and ")
-    s = s.replace("federal credit union", " fcu ").replace("credit union", " cu ")
-    s = re.sub(r"\b(the|bank|n\.?a\.?|national association|financial|group|a|inc|of america)\b", " ", s) if not s.startswith("bank of") else re.sub(r"\b(the|n\.?a\.?)\b", " ", s)
+    s = re.sub(r"\bbank of\b", "bankof", s)  # keep 'Bank of America' distinct from 'America First'
+    s = re.sub(GENERIC, " ", s)
     s = re.sub(r"[^a-z0-9]", "", s)
     return ALIASES.get(s, s)
+
+
+def clean_name(name):
+    n = re.sub(r"^\[[^\]]*\]\s*", "", clean(name))
+    while True:  # strip trailing state codes like "VA, WV, OH" (but not "CU")
+        m = re.search(r"[\s,&]+(?:and\s+)?\b([A-Z]{2})\s*$", n)
+        if not m or m[1] not in STATES:
+            break
+        n = n[:m.start()]
+    n = re.sub(r"\s*[-–:,]\s*$", "", n)
+    n = re.sub(r"\s+(?:checking|savings)?\s*(?:bonus|offer)?\s*$", "", n, flags=re.I).strip()
+    return n
 
 
 def money_vals(s):
@@ -141,7 +158,9 @@ def parse_doc(html):
             continue
         dash = re.search(r"\s-\s", txt)
         head, tail = (txt[:dash.start()], txt[dash.end():]) if dash else (txt, "")
-        name = clean(re.split(r"\$|\bup to\b", re.sub(r"^\[[^\]]*\]\s*", "", head), flags=re.I)[0])
+        if re.search(r"youth|student|college|teen|kids|minor", txt, re.I) and not re.search(r"adult", txt, re.I):
+            continue
+        name = clean_name(re.split(r"\$|\bup to\b", re.sub(r"^\[[^\]]*\]\s*", "", head), flags=re.I)[0])
         if len(name) < 2:
             continue
         # collect body until next heading
@@ -160,7 +179,7 @@ def parse_doc(html):
             elif isinstance(sib, str):
                 parts.append(sib)
         bodytxt = clean(" ".join(parts))
-        st = states_in(tail) or states_in(re.findall(r"^\[([^\]]+)\]", txt)[0] if txt.startswith("[") else "")
+        st = states_in(txt[txt.index("$"):] if "$" in txt else tail) or states_in(re.findall(r"^\[([^\]]+)\]", txt)[0] if txt.startswith("[") else "")
         o = {"b": name, "amt": max(amts), "src": "doc", "heading": txt,
              "st": st if st else ("ALL" if "checking" in section and "state" not in section else "?"),
              "req": bodytxt[:240], "url": next((u for u in (links.get("direct"), links.get("post")) if u and u.startswith("https://")), DOC_URL)}
@@ -192,7 +211,9 @@ def parse_fs(html):
     offers, seen = [], set()
     for h in heads:
         m = FS_HEAD.match(clean(h.get_text(" ")))
-        name = clean(re.sub(r"^\d{1,3}\s+", "", m["name"]))
+        name = clean_name(re.sub(r"^\d{1,3}\s+", "", m["name"]))
+        if re.search(r"youth|student|college|teen|kids", name, re.I):
+            continue
         if re.fullmatch(r"(top|best|up to|earn|get|bonus|total).*", name, re.I):
             continue
         parts, link = [], None
@@ -237,7 +258,7 @@ def merge(curated, scraped, prev, ok_sources):
     groups = {}
     for i, s in enumerate(scraped):
         n = norm(s["b"])
-        key = n if n in by_norm else next((k for k in by_norm if len(min(k, n, key=len)) >= 5 and (k.startswith(n) or n.startswith(k))), None)
+        key = n if n in by_norm else None
         if key:
             groups.setdefault(key, []).append(s)
             used.add(i)
@@ -261,6 +282,9 @@ def merge(curated, scraped, prev, ok_sources):
                 if new_amt != old_amt and 25 <= new_amt <= 5000:
                     o["prevAmt"], o["changed"] = old_amt, TODAY
                 o["amt"] = new_amt if 25 <= new_amt <= 5000 else c["amt"]
+            doc_st = next((h["st"] for h in hits if h["src"] == "doc" and isinstance(h["st"], list) and h["st"]), None)
+            if doc_st and isinstance(o.get("st"), list):
+                o["st"] = doc_st  # Doctor of Credit's state list is fresher than the researched footprint
             for h in hits:
                 if o.get("cd") is None and h.get("cd"):
                     o["cd"], o["cdSrc"] = h["cd"], h["src"]
@@ -274,7 +298,7 @@ def merge(curated, scraped, prev, ok_sources):
     for i, s in enumerate(scraped):
         if i in used or not (25 <= s["amt"] <= 5000):
             continue
-        k = (norm(s["b"]), s["amt"])
+        k = norm(s["b"])
         a = autos.get(k)
         if a:  # same offer on both sites: prefer DoC states, fill gaps from Fat Stacks
             for f in ("dd", "mindd", "mdd", "win", "tx", "cd", "fee", "pull", "exp"):
@@ -282,6 +306,8 @@ def merge(curated, scraped, prev, ok_sources):
                     a[f] = s[f]
             if a["st"] == "?" and s["st"] != "?":
                 a["st"] = s["st"]
+            if s["src"] == "doc" and a["srcs"] == ["fs"]:  # prefer Doctor of Credit's wording and link
+                a.update(b=s["b"], amt=s["amt"], req=s.get("req", a["req"]), url=s.get("url") or a["url"])
             a["srcs"] = sorted(set(a["srcs"]) | {s["src"]})
             continue
         b = s["b"]
@@ -293,6 +319,7 @@ def merge(curated, scraped, prev, ok_sources):
                     "auto": 1, "srcs": [s["src"]], "seen": TODAY}
     for a in autos.values():
         a = {k: v for k, v in a.items() if v is not None or k in ("keep", "cd")}
+        a["id"] = "auto-" + slug(norm(a["b"]))
         a["first"] = prev_by_id.get(a["id"], {}).get("first", TODAY)
         out.append(a)
     # keep recently seen auto offers that a source missed this run (or whose source failed)
@@ -343,7 +370,7 @@ def main():
     else:
         offers = merge(curated, scraped, prev, ok)
     data = {"generated": NOW, "sources": sources, "offers": offers,
-            "unmatched": sorted({s["heading"] if s.get("heading") else s["b"] for s in scraped})[:400]}
+            "scrapedNames": sorted({s["heading"] if s.get("heading") else s["b"] for s in scraped})[:500]}
     site = os.path.join(ROOT, "site")
     shutil.rmtree(site, ignore_errors=True)
     os.makedirs(os.path.join(site, "data"))

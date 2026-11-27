@@ -36,7 +36,9 @@ FS_ITEMS = [("1", "HSBC", "3,000", "No DD (tiered) | $50/mo fee", "Premier offer
             ("11", "Huntington", "600", "$500 DD in 90 days (tiered) | 24mo cooldown | $10/mo fee", "Huntington..."),
             ("19", "Wells Fargo", "500", "$1,000 DD in 90 days | 12mo cooldown | $15/mo fee", "This offer is no longer available."),
             ("40", "Fat Stacks Only CU", "275", "$750 DD in 60 days + 8 transactions | 18mo cooldown | $0 monthly fee", "Available through March 31, 2027."),
-            ("41", "Acme Biz", "500", "No DD + 5 tx", "A business checking bonus.")]
+            ("41", "Acme Biz", "500", "No DD + 5 tx", "A business checking bonus."),
+            ("42", "Hometown CU", "250", "No DD + 15 transactions | $0 monthly fee", "Hometown..."),
+            ("43", "Navy Federal Credit Union", "400", "$500 DD in 120 days | 9mo cooldown", "Military only.")]
 FS_ITEMS += [(str(50 + i), f"Filler Bank {i}", "200", "$500 DD in 60 days | $0 monthly fee", "Filler.") for i in range(20)]
 FS = "<html><body><main>" + "".join(
     f'<div class="card"><h3><span>{r}</span> <span>{n}</span><span>${a}</span></h3><p>{s}</p><p>{d} <a href="/blog/{n.lower().replace(" ", "-")}-bonus">Review →</a></p></div>'
@@ -72,7 +74,8 @@ def test():
             {"id": "auto-old-cu-250", "b": "Old CU", "amt": 250, "auto": 1, "seen": "2020-01-01"}]
     out = {o["id"]: o for o in scrape.merge(curated, list(d.values()) + list(f.values()), prev, ["x"])}
     assert out["bmo"]["amt"] == 650 and out["bmo"]["prevAmt"] == 600 and out["bmo"]["seen"] == scrape.TODAY, out["bmo"]
-    assert out["bmo"]["st"] == ["IL"], "curated states must win"
+    assert out["bmo"]["st"] == ["AZ", "CA", "CO", "FL", "IL", "WI"], "Doctor of Credit's state list replaces the researched one"
+    assert out["wf"]["st"] == "ALL", "nationwide stays nationwide"
     assert out["bmo"]["first"] == "2026-09-01"
     assert out["hunt"]["cd"] == 24, "fill missing churn rule from Fat Stacks"
     assert out["gone"]["seen"] == "2026-11-01", "unlisted offer keeps its last-seen date"
@@ -82,6 +85,8 @@ def test():
     assert autos["Hometown Credit Union"]["st"] == ["MN"] and autos["Hometown Credit Union"]["t"] == "cu"
     assert "Old CU" not in autos, "auto offers unseen for >14 days are dropped"
     assert "HSBC" in autos and "Schwab" in autos
+    assert sum(1 for o in autos.values() if scrape.norm(o["b"]) == "hometown") == 1, "same bank on both sites must appear once"
+    assert autos["Hometown Credit Union"]["srcs"] == ["doc", "fs"]
     print("all scraper tests passed")
 
 
