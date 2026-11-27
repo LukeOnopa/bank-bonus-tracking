@@ -26,7 +26,7 @@ jobs:
       - name: Crawler tests
         run: python tests/test_discover.py
       - name: Crawl
-        run: python scripts/discover.py --prev https://lukeonopa.github.io/bank-bonus-tracking/data/discovered.json --out discovered.json --minutes "${{ inputs.minutes || '12' }}" --workers 12
+        run: python scripts/discover.py --prev https://lukeonopa.github.io/bank-bonus-tracking/data/discovered.json --offers https://lukeonopa.github.io/bank-bonus-tracking/data/offers.json --out discovered.json --minutes "${{ inputs.minutes || '12' }}" --workers 12
       - uses: actions/upload-artifact@v4
         if: always()
         with:

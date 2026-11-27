@@ -17,6 +17,20 @@ def test():
     assert locate.state_hint({"url": "https://example.com/blog/credit-union-of-oregon-or-checking"}) == set(), "'or' is a word, not Oregon"
     assert locate.own_domains({"url": "https://www.fatstacksacademy.com/x", "offerUrl": "https://www.bell.bank/promo"}) == {"bell.bank"}
 
+    # Doctor of Credit names limited offers' states at the start of the address
+    doc = lambda slug: {"url": f"https://www.doctorofcredit.com/{slug}/"}  # noqa: E731
+    assert locate.article_states(doc("wi-il-onlyheritage-credit-union-100-checking-bonus")) == ["IL", "WI"]
+    assert locate.article_states(doc("il-only-u-of-i-community-credit-union-150-checking-bonus")) == ["IL"]
+    assert locate.article_states(doc("mi-portland-federal-credit-union-100-referral-bonus")) is None, "no 'only': just a hint"
+    assert locate.article_states({"url": "https://www.fatstacksacademy.com/blog/il-only-bank"}) is None
+
+    # the bank's website from the bonus article's links
+    from scrape import link_matches_bank
+    art = '<a href="https://www.facebook.com/x">f</a> <a href="https://www.peoplesbankmt.com/checking-bonus">Apply</a> <a href="https://www.chase.com/">Chase</a>'
+    got = locate.article_domains({"b": "Peoples Bank", "url": "https://www.fatstacksacademy.com/blog/peoples-bank-checking-bonus"}, lambda u: art, link_matches_bank)
+    assert got == {"peoplesbankmt.com"}, got
+    assert locate.article_domains({"b": "X", "url": "https://www.doctorofcredit.com/best-bank-account-bonuses/"}, lambda u: art, link_matches_bank) == set(), "the roundup page links to every bank"
+
     peoples = [{"NAME": "Peoples Bank", "STALP": s, "WEBADDR": f"www.peoples{s.lower()}.com", "CERT": i} for i, s in enumerate(["WA", "OH", "IA"])]
     site = lambda c: c["WEBADDR"]  # noqa: E731
     assert locate.pick(peoples, {"b": "Peoples Bank"}, norm, "NAME", site, "STALP") == (None, None), "a shared name stays unknown"

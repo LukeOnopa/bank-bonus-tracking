@@ -620,7 +620,7 @@
   ],
   "pull": "soft",
   "fee": "$25, waivable",
-  "req": "$5,000 in direct deposits within 60 days ($200 tier with ~$2,000 on lower accounts).",
+  "req": "$5,000+ in direct deposits within 60 days for the $400 bonus. Lower-tier Virtual Wallet accounts pay $200 with about $2,000 in direct deposits.",
   "note": "Amount varies by location. Card funding codes as cash advance.",
   "url": "https://www.pnc.com"
  },

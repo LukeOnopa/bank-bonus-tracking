@@ -43,6 +43,39 @@ def test():
     assert discover.extract("https://bank.example/app", JS_ONLY) == ([], "needs-browser")
     assert discover.extract("https://bank.example/rate", RATE)[0] == [], "interest-rate promos are not bonuses"
 
+    # offers for other audiences are skipped
+    youth = page("<h1>Student checking</h1><p>Students ages 16-24 get a $100 bonus when they open a checking account with direct deposit within 60 days.</p>")
+    assert discover.extract("https://bank.example/x", youth)[0] == [], "student offers are skipped"
+    existing = page("<h1>Checking bonus</h1><p>Existing customers: earn a $200 bonus when you open a second checking account and add direct deposits within 90 days.</p>")
+    assert discover.extract("https://bank.example/y", existing)[0] == [], "existing-customer offers are skipped"
+    sweeps = page("<h1>Win big</h1><p>Open a checking account for a chance to win $2,000. No purchase necessary.</p>")
+    assert discover.extract("https://bank.example/z", sweeps)[0] == [], "sweepstakes are skipped"
+    for u in ("/student-checking-promotion", "/high-school-promo/", "/existing-customer-checking-bonus", "/smartcard-promotion/"):
+        assert discover.NOT_FOR_NEW.search(u), u
+    assert not discover.NOT_FOR_NEW.search("/personal/checking/bonus-offer")
+    assert discover.NOT_FOR_NEW.search("/bank-accounts/savings-accounts/balance-saving-spending-annual-bonus.html")
+    assert discover.clean_url("https://b.example/promo.html?icid=PB_1&utm_source=x") == "https://b.example/promo.html"
+
+    # tiers on one page become one find; an unknown direct deposit amount isn't shown as $1
+    tiered = discover.combine([
+        {"amt": 500, "url": "https://r.example/p?icid=1", "conf": "high", "snippet": "a", "dd": 1, "win": 60},
+        {"amt": 400, "url": "https://r.example/p", "conf": "medium", "snippet": "b"},
+        {"amt": 400, "url": "https://r.example/other", "conf": "high", "snippet": "c"}])
+    assert len(tiered) == 2 and tiered[0]["tiers"] == [400, 500] and tiered[0]["amt"] == 500, tiered
+    assert tiered[0]["ddAmountUnknown"] and "dd" not in tiered[0], tiered[0]
+
+    # "new" means the site doesn't list the bank yet, under any of its names
+    listed = [{"id": "auto-think", "b": "Think Bank", "amt": 200, "st": "?"},
+              {"id": "auto-maxx", "b": "Maxx by Cedar Rapids Bank & Trust", "amt": 425, "st": ["IA"]},
+              {"id": "royal", "b": "Royal Credit Union", "amt": 400, "st": ["MN", "WI"], "url": "https://www.rcu.org"}]
+    m = discover.match_known
+    assert m({"name": "Think Mutual Bank", "site": "https://www.thinkbank.com", "states": ["MN"]}, listed)["id"] == "auto-think"
+    assert m({"name": "Cedar Rapids Bank and Trust Company", "site": "https://crbt.bank", "states": ["IA"]}, listed)["id"] == "auto-maxx"
+    assert m({"name": "Royal", "site": "https://www.rcu.org", "states": ["WI"]}, listed)["id"] == "royal"
+    assert m({"name": "Lake Ridge Bank", "site": "https://www.lakeridge.bank", "states": ["WI"]}, listed) is None
+    assert discover.known_fields(listed[2], {"amt": 500, "tiers": [400, 500]}) == {"known": True, "knownAs": "royal"}
+    assert discover.known_fields(listed[0], {"amt": 300})["knownAmt"] == 200
+
     # choosing pages to read
     assert discover.url_score("https://bank.example/personal/checking-bonus") > discover.url_score("https://bank.example/personal/checking")
     assert discover.url_score("https://bank.example/promo/cd-special") < 4, "CD promos are not worth reading"

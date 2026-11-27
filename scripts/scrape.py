@@ -512,7 +512,7 @@ def main():
         offers = merge(curated, scraped, prev, ok)
     if os.environ.get("SKIP_LOCATE") != "1":
         try:
-            found, looked = locate(offers, prev, norm)
+            found, looked = locate(offers, prev, norm, fetch=fetch, link_ok=link_matches_bank)
             print(f"Located {found} offers with unknown states ({looked} looked up this run)")
         except Exception as e:  # never let this block the refresh
             print("Locating offers failed:", e)
