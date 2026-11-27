@@ -47,13 +47,15 @@ def test():
     locate.locate_one = lambda o, n: calls.append(o["b"]) or {"st": ["MN"], "stSrc": "branches", "stInst": "X", "stHow": "name"}
     try:
         today = dt.date(2026, 11, 27)
-        prev = [{"id": "a", "st": ["ND"], "stSrc": "branches", "stOn": "2026-11-20"}, {"id": "b", "stOn": "2026-11-20"}, {"id": "c", "stOn": "2026-09-01"}]
-        offers = [{"id": k, "b": k.upper(), "st": "?"} for k in "abcd"] + [{"id": "e", "b": "E", "st": ["TX"]}]
+        v = locate.VERSION
+        prev = [{"id": "a", "st": ["ND"], "stSrc": "branches", "stOn": "2026-11-20", "stVer": v}, {"id": "b", "stOn": "2026-11-20", "stVer": v},
+                {"id": "c", "stOn": "2026-09-01", "stVer": v}, {"id": "f", "st": ["IA"], "stSrc": "hq", "stOn": "2026-11-26"}]
+        offers = [{"id": k, "b": k.upper(), "st": "?"} for k in "abcdf"] + [{"id": "e", "b": "E", "st": ["TX"]}]
         found, looked = locate.locate(offers, prev, norm, today=today)
         assert offers[0]["st"] == ["ND"], "cached answer reused"
         assert offers[1]["st"] == "?", "a recent 'not found' isn't retried"
-        assert calls == ["C", "D"] and looked == 2 and found == 3, (calls, looked, found)
-        assert offers[4]["st"] == ["TX"], "known states are left alone"
+        assert calls == ["C", "D", "F"] and looked == 3 and found == 4, (calls, looked, found)  # F: cached by an older version, redone
+        assert offers[5]["st"] == ["TX"], "known states are left alone"
     finally:
         locate.locate_one = real
     print("all locate tests passed")
