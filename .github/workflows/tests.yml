@@ -18,6 +18,8 @@ jobs:
       - run: pip install beautifulsoup4==4.12.3
       - name: Scraper tests
         run: python tests/test_scrape.py
+      - name: Crawler tests
+        run: python tests/test_discover.py
 
       - uses: actions/setup-node@v4
         with:
