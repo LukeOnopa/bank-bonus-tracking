@@ -23,6 +23,7 @@ FDIC = "https://api.fdic.gov/banks"
 NCUA = "https://mapping.ncua.gov/api"
 UA = "BankBonusTracker/1.0 (+https://github.com/LukeOnopa/bank-bonus-tracking)"
 CACHE_DAYS = 30
+VERSION = 2  # bump when the lookup gets smarter, so cached answers are redone
 THIRD_PARTY = ("doctorofcredit.com", "fatstacksacademy.com", "reddit.com", "bit.ly", "tinyurl.com")
 STATES = set("AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split())
 CU = re.compile(r"credit union|\bc\.?u\.?\b|\bfcu\b|federal credit", re.I)
@@ -231,12 +232,12 @@ def locate(offers, prev, norm, budget=250, today=None, fetch=None, link_ok=None,
             found += 1
             continue
         p = old.get(o["id"]) or {}
-        if p.get("stOn") and (today - dt.date.fromisoformat(p["stOn"])).days < CACHE_DAYS:
+        if p.get("stOn") and p.get("stVer") == VERSION and (today - dt.date.fromisoformat(p["stOn"])).days < CACHE_DAYS:
             if p.get("stSrc"):
-                o.update({k: p[k] for k in ("st", "stSrc", "stInst", "stHow", "stOn") if k in p})
+                o.update({k: p[k] for k in ("st", "stSrc", "stInst", "stHow", "stOn", "stVer") if k in p})
                 found += 1
             else:
-                o["stOn"] = p["stOn"]  # looked up recently and not found: don't retry yet
+                o["stOn"], o["stVer"] = p["stOn"], VERSION  # looked up recently and not found: don't retry yet
             continue
         if looked >= budget or time.monotonic() > stop:  # the rest wait for the next hourly run
             continue
@@ -250,7 +251,7 @@ def locate(offers, prev, norm, budget=250, today=None, fetch=None, link_ok=None,
             continue
         finally:
             o.pop("_articleDomains", None)
-        o["stOn"] = today.isoformat()
+        o["stOn"], o["stVer"] = today.isoformat(), VERSION
         if r:
             o.update(r)
             found += 1

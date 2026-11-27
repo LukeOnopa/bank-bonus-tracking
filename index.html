@@ -524,7 +524,7 @@ function elig(o){
  const r=[],p=S.profile,st=S.track[o.id]?.status;
  if(o.exp&&o.exp<today())r.push("Offer expired "+fmt(o.exp));
  if(Array.isArray(o.st)&&p.state&&!o.st.includes(p.state))r.push("Only in "+o.st.join(", "));
- if(o.seen&&META&&-days(o.seen)>STALE_DAYS)r.push("Not listed on bonus sites since "+fmt(o.seen)+" — may have ended");
+ if(o.seen&&META&&-days(o.seen)>STALE_DAYS)r.push((o.crawl?`Not seen on ${o.b}'s website since `:"Not listed on bonus sites since ")+fmt(o.seen)+" — may have ended");
  if(o.mil&&!p.mil)r.push("Military / family membership only");
  const rel=(p.banks||{})[bkey(o.b)];if(rel&&!["open","applied","earned"].includes(st))r.push(rel==="have"?`You already bank with ${o.b}, and bonuses are usually for new customers`:`You had a ${o.b} account recently, and most banks make you wait 1–2 years`);
  if(o.branch&&p.branch===false)r.push("Has to be opened in a branch");
@@ -619,7 +619,7 @@ function steps(o){const L=[],win=o.win&&o.win<365?` within ${o.win} days`:"";
  if(o.dep)L.push(`Deposit at least <b>${money(o.dep)}</b> of new money${win} and leave it there.${o.amt>=1000?" Bigger deposits earn a bigger bonus.":""}`);
  else if(o.mdd)L.push(`Have at least <b>${money(o.mdd)} a month</b> in ${DDW}${o.win?` for the first ${o.win} days`:""}.`);
  else if(o.dd>1)L.push(`Receive <b>${o.mindd?money(o.mindd)+"–"+money(o.dd):money(o.dd)}</b> in ${DDW}${win}.${o.mindd?" More deposits earn a bigger bonus.":""}`);
- else if(o.dd===1)L.push(`Set up at least one ${DDW.replace("direct deposits","direct deposit")}${win} (any amount).`);
+ else if(o.dd===1)L.push(`Set up at least one ${DDW.replace("direct deposits","direct deposit")}${win} (${o.crawl?"the offer page doesn't say how much — check the terms":"any amount"}).`);
  else if(o.spend)L.push(`Spend <b>${money(o.spend)}+ a month</b> on the debit card (no direct deposit needed).`);
  else L.push(`No direct deposit needed.`);
  if(o.tx)L.push(`Make <b>${o.tx} debit card purchases</b>${win}.`);
@@ -649,9 +649,10 @@ function verifyLine(o){const c=o.check;if(!c||c.status!=="confirmed")return"";
 function headsUp(o){const H=[],c=o.check||{};if(o.note)H.push(esc(o.note));
  if(c.status==="differs")H.push(`${esc(o.b)}'s own offer page mentions ${c.amts.map(money).join(", ")} — not ${money(o.amt)}. The offer may have changed, or the bank lists a different tier; check before applying.`);
  if(c.status==="bad-link")H.push(`The link the bonus sites gave doesn't go to ${esc(o.b)}'s website${c.why?` (${esc(c.why)})`:""}, so it's been removed. Use the source article to find the offer.`);
- if(o.auto&&c.status!=="confirmed")H.push("Collected automatically from bonus sites — confirm the details on the offer page before applying.");
+ if(o.crawl)H.push(`Found on ${esc(o.b)}'s own website by this site's crawler${o.first?` on ${fmt(o.first).replace(/, \d{4}$/,"")}`:""}. Nobody has reviewed it yet, so read the offer page and confirm the terms before applying.`);
+ else if(o.auto&&c.status!=="confirmed")H.push("Collected automatically from bonus sites — confirm the details on the offer page before applying.");
  else if(META&&!o.seen&&!o.custom)H.push("Not on the bonus roundups right now — make sure it's still live.");
- if(o.seen&&META){const a=-days(o.seen);if(a>1&&a<=STALE_DAYS)H.push(`Last listed on bonus sites ${fmt(o.seen)} — it may be ending.`)}
+ if(o.seen&&META&&!o.crawl){const a=-days(o.seen);if(a>1&&a<=STALE_DAYS)H.push(`Last listed on bonus sites ${fmt(o.seen)} — it may be ending.`)}
  return H.length?`<p class="heads"><b>Heads-up:</b> ${H.join(" ")}</p>`:""}
 function selStatus(o){const v=S.track[o.id]?.status||"";return `<select data-act="status" data-id="${esc(o.id)}" aria-label="Status for ${esc(o.b)}">${STATUS.map(([k,l])=>`<option value="${k}"${k===v?" selected":""}>${l}</option>`).join("")}</select>`}
 function checkNote(o){const c=o.check;if(!c||["confirmed","differs","bad-link"].includes(c.status))return"";

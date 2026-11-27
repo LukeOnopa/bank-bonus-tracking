@@ -76,6 +76,25 @@ def test():
     assert discover.known_fields(listed[2], {"amt": 500, "tiers": [400, 500]}) == {"known": True, "knownAs": "royal"}
     assert discover.known_fields(listed[0], {"amt": 300})["knownAmt"] == 200
 
+    # adding finds to the site's offer list
+    assert discover.display_name({"name": "VISIONBANK OF IOWA", "kind": "bank"}) == "Visionbank of Iowa"
+    assert discover.display_name({"name": "Ripco", "kind": "cu"}) == "Ripco Credit Union"
+    assert discover.display_name({"name": "Old National Bank", "kind": "bank"}) == "Old National Bank"
+    inst = {"id": "ncua-1", "name": "Members Cooperative", "kind": "cu", "site": "https://www.membersccu.com", "states": ["MN", "WI"]}
+    f = {"inst": "ncua-1", "amt": 500, "tiers": [200, 500], "ddAmountUnknown": True, "win": 60, "conf": "high", "known": False,
+         "url": "https://www.membersccu.com/lp-2842/", "checked": "2026-11-27"}
+    o = discover.find_to_offer(f, inst)
+    assert o["id"] == "crawl-ncua-1" and o["b"] == "Members Cooperative Credit Union" and o["t"] == "cu" and o["crawl"] == 1, o
+    assert o["st"] == ["MN", "WI"] and o["dd"] == 1 and o["offerUrl"] == f["url"] and o["check"]["status"] == "confirmed", o
+    assert "didn't state an amount" in o["req"] and "$200, $500" in o["req"], o["req"]
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "offers.json")
+        json.dump({"offers": [{"id": "x", "b": "X"}, {"id": "crawl-old", "b": "Old", "crawl": 1}]}, open(path, "w"))
+        finds = [f, dict(f, amt=300, tiers=None), dict(f, inst="fdic-9", known=True), dict(f, inst="fdic-8", conf="medium")]
+        added = discover.add_to_offers(path, finds, {"ncua-1": inst, "fdic-9": inst, "fdic-8": inst})
+        ids = [o["id"] for o in json.load(open(path))["offers"]]
+        assert ids == ["x", "crawl-ncua-1"] and len(added) == 1, ids  # old crawler offer replaced; one per bank; known/medium skipped
+
     # choosing pages to read
     assert discover.url_score("https://bank.example/personal/checking-bonus") > discover.url_score("https://bank.example/personal/checking")
     assert discover.url_score("https://bank.example/promo/cd-special") < 4, "CD promos are not worth reading"

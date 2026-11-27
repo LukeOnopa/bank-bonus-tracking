@@ -503,11 +503,69 @@ def known_fields(o, f):
     return out
 
 
+SMALL = {"of", "and", "the", "for", "at", "in", "on", "by"}
+
+
+def display_name(inst):
+    """'VISIONBANK OF IOWA' -> 'Visionbank of Iowa'; credit unions get 'Credit Union' back ('Ripco' -> 'Ripco Credit Union')."""
+    n = inst["name"]
+    if n.isupper() or n.islower():
+        n = " ".join(w if i and w.lower() in SMALL else w.capitalize() for i, w in enumerate(n.lower().split()))
+        n = n.replace(" Of ", " of ")
+    n = re.sub(r",?\s+(National Association|N\.A\.)$", "", n)
+    if inst["kind"] == "cu" and not re.search(r"credit union|\bcu\b|fcu", n, re.I):
+        n += " Credit Union"
+    return n
+
+
+def find_to_offer(f, inst):
+    """A crawler find as an offer card: unreviewed, linked to the bank's page, with its branch states."""
+    name = display_name(inst)
+    win = f.get("win")
+    bits = []
+    if f.get("dd") and not f.get("ddAmountUnknown"):
+        bits.append(f"${f['dd']:,}+ in direct deposits" + (f" within {win} days" if win else ""))
+    elif f.get("ddAmountUnknown"):
+        bits.append("A direct deposit is required" + (f" within {win} days" if win else "") + "; the page didn't state an amount")
+    if f.get("tx"):
+        bits.append(f"{f['tx']} debit card purchases")
+    req = ". ".join(bits) + "." if bits else "Requirements weren't clear on the page; read the terms."
+    if f.get("tiers"):
+        req += " Bonus tiers on the page: " + ", ".join(f"${t:,}" for t in f["tiers"]) + "."
+    o = {"id": f"crawl-{inst['id']}", "b": name, "a": "Checking", "t": "cu" if inst["kind"] == "cu" else "bank", "amt": f["amt"],
+         "dd": 1 if f.get("ddAmountUnknown") else f.get("dd") or 0, "win": win or 90, "tx": f.get("tx") or 0, "keep": None, "cd": None,
+         "st": inst.get("states") or "?", "stSrc": "branches", "stInst": inst["name"], "pull": "?", "fee": f.get("fee") or "—",
+         "req": req, "url": inst.get("site"), "offerUrl": f["url"], "crawl": 1, "seen": f["checked"], "first": f.get("first") or f["checked"],
+         "check": {"status": "confirmed", "on": f["checked"], "url": f["url"], "why": "", "amts": f.get("tiers") or [f["amt"]]}}
+    if f.get("mindd"):
+        o["mindd"] = f["mindd"]
+    if f.get("exp"):
+        o["exp"] = f["exp"]
+    return o
+
+
+def add_to_offers(path, finds, by_id):
+    """Add new, high-confidence finds to the site's offers.json. Earlier crawler offers are replaced, never duplicated."""
+    with open(path) as fh:
+        data = json.load(fh)
+    offers = [o for o in data.get("offers", []) if not o.get("crawl")]
+    added = [find_to_offer(f, by_id[f["inst"]]) for f in finds
+             if not f["known"] and f["conf"] == "high" and f["amt"] >= 100 and (not f.get("exp") or f["exp"] >= TODAY) and f["inst"] in by_id]
+    seen_ids = set()
+    added = [o for o in added if not (o["id"] in seen_ids or seen_ids.add(o["id"]))]  # one offer per bank: the biggest find comes first
+    data["offers"] = offers + added
+    data.setdefault("sources", []).append({"name": "Banks' own websites (crawler)", "ok": True, "count": len(added), "lastOk": NOW.isoformat(timespec="seconds")})
+    with open(path, "w") as fh:
+        json.dump(data, fh, separators=(",", ":"))
+    return added
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--out", default=os.path.join(ROOT, "site", "data", "discovered.json"))
     ap.add_argument("--prev", default=None, help="previous discovered.json (URL or path)")
     ap.add_argument("--offers", default=None, help="the site's live offers.json (URL or path), to tell new banks from listed ones")
+    ap.add_argument("--add-to", default=None, help="offers.json to add new high-confidence finds to (the site's offer list)")
     ap.add_argument("--states", default=",".join(PILOT_STATES))
     ap.add_argument("--minutes", type=float, default=5, help="time budget for crawling")
     ap.add_argument("--workers", type=int, default=8, help="sites crawled at once (each site is still one request at a time)")
@@ -559,6 +617,10 @@ def main(argv=None):
             finds.append({"inst": iid, "bank": inst["name"], "kind": inst["kind"], "states": inst["states"], "site": inst["site"],
                           "checked": s["checked"][:10], **f, **known_fields(match_known(inst, listed), f)})
     finds.sort(key=lambda f: (f["known"], {"high": 0, "medium": 1, "low": 2}[f["conf"]], -f["amt"]))
+    first = {(f["inst"], f["amt"]): f.get("first") for f in prev.get("finds") or []}
+    for f in finds:  # when the crawler first saw this offer
+        f["first"] = first.get((f["inst"], f["amt"])) or f["checked"]
+    added = add_to_offers(a.add_to, finds, by_id) if a.add_to else []
     counts = {}
     for s in sites.values():
         counts[s.get("status", "?")] = counts.get(s.get("status", "?"), 0) + 1
@@ -573,6 +635,8 @@ def main(argv=None):
     log(f"Crawled {done} sites in {(time.monotonic() - start) / 60:.1f} min. "
         f"{len(sites)}/{len(items)} checked so far. Status: {counts}. Bonuses found: {len(finds)} "
         f"({out['summary']['new_banks']} banks the site doesn't list yet).")
+    if a.add_to:
+        log(f"Added {len(added)} new offers to {a.add_to}: " + ", ".join(f"{o['b']} ${o['amt']}" for o in added))
     for f in finds[:25]:
         tiers = "/".join(f"${t}" for t in f.get("tiers") or [f["amt"]])
         dd = "?" if f.get("ddAmountUnknown") else f.get("dd", "-")
