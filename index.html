@@ -103,6 +103,22 @@ textarea{min-height:70px;resize:vertical}
 .paid .msg{position:absolute;left:-200px;width:400px;top:96px;text-align:center;color:#fff;font:800 40px/1.05 "Red Hat Display",system-ui,sans-serif;text-shadow:0 3px 0 #0b1f4b,0 10px 30px #000a}
 .paid .msg span{display:block;color:#ff4d8d;font-size:52px;margin-top:4px}
 .badge{display:inline-block;min-width:22px;padding:0 6px;margin-left:6px;border-radius:11px;background:var(--mag);color:#fff;font-size:13px;line-height:22px;text-align:center}
+.amtw{text-align:right;flex:none}.amtw small{display:block;color:var(--mute);font-size:13px;margin-top:2px}
+.tag{display:inline-block;margin-top:6px;margin-left:4px;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;background:var(--chip);color:var(--mute)}.tag.new{background:var(--mag);color:#fff}
+.qual{margin:0;padding:8px 12px;border-radius:8px;font-size:14px;font-weight:600;background:var(--chip)}.qual.yes{background:var(--oksoft);color:var(--ok)}.qual.no{background:var(--warnsoft);color:var(--warn)}
+.qual.yes::before{content:"✓ "}
+.lbl{margin:4px 0 -2px;font:700 13px "Red Hat Text",system-ui,sans-serif;color:var(--mute)}
+.steps{margin:0;padding:0;list-style:none;counter-reset:s;display:grid;gap:8px}
+.steps li{counter-increment:s;display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;font-size:15px;line-height:1.45}
+.steps li::before{content:counter(s);width:22px;height:22px;border-radius:50%;background:var(--band);color:#fff;font:700 12px/22px "Red Hat Display",system-ui,sans-serif;text-align:center;margin-top:1px}
+:root[data-theme=dark] .steps li::before{background:#2c4590}
+abbr[title]{text-decoration:underline dotted;text-underline-offset:3px;cursor:help}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px;margin:2px 0 0;padding:12px 0 0;border-top:1px solid var(--line)}
+.facts dt{font-size:12px;color:var(--mute);font-weight:600}.facts dd{margin:1px 0 0;font-size:14px}
+.facts .muted{color:var(--mute)}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px;background:var(--mute)}.dot.o5{background:var(--ok)}.dot.o3{background:var(--warn)}.dot.o1{background:var(--mag)}
+.heads{margin:0;font-size:14px;padding:8px 12px;border-left:3px solid var(--warn);background:var(--warnsoft);border-radius:0 8px 8px 0}
+.go{font-weight:600;color:var(--ink)!important}
+.card.inel .steps,.card.inel .facts{opacity:.8}
 .more{border-top:1px solid var(--line);padding-top:8px}
 .more summary{cursor:pointer;font-weight:600;font-size:15px;min-height:36px;display:flex;align-items:center;gap:6px;list-style:none}
 .more summary::-webkit-details-marker{display:none}
@@ -389,36 +405,48 @@ function stats(){
  <div class="stat"><b>${money(prog)}</b><span>Applied or in progress</span></div>
  <div class="stat"><b>${money(earn)}</b><span>Bonuses received in ${y}</span></div>
  <div class="stat"><b>${ev?(ev.d.slice(0,4)===y?fmt(ev.d).replace(/, \d{4}/,""):fmt(ev.d)):"—"}</b><span>${ev?esc(ev.what+" · "+ev.o.b):"No upcoming dates"}</span></div>`}
-function chips(o){const c=[];
- if(o.mdd)c.push(`<span class="chip k">${money(o.mdd)}/mo DD</span>`);else if(o.dd>1)c.push(`<span class="chip k">${o.mindd?money(o.mindd)+"–":""}${money(o.dd)} DD</span>`);else if(o.dd)c.push(`<span class="chip k">Any DD</span>`);else if(!o.dep)c.push(`<span class="chip g">No DD</span>`);
- if(o.dep)c.push(`<span class="chip k">${money(o.dep)}+ deposit</span>`);
- if(o.win)c.push(`<span class="chip">${o.win} days</span>`);
- if(o.tx)c.push(`<span class="chip">${o.tx} debit tx</span>`);
- if(o.spend)c.push(`<span class="chip">${money(o.spend)}/mo spend</span>`);
- c.push(`<span class="chip">Keep open ${o.keep?o.keep+" days":"? (plan "+DEF_KEEP+")"}</span>`);
- c.push(`<span class="chip ${o.cd==null?"w":""}">Churn: ${o.cd===-1?"once ever":o.cd!=null?"every "+o.cd+" mo":"not stated"}</span>`);
- c.push(`<span class="chip">Fee: ${esc(o.fee||"—")}</span>`,`<span class="chip">${!o.pull||o.pull==="?"?"Credit pull unknown":esc(o.pull)+" pull"}</span>`);
- if(o.exp)c.push(`<span class="chip w">Ends ${fmt(o.exp)}</span>`);
- c.push(`<span class="chip ${o.st==="?"?"w":""}">${o.st==="ALL"?"Nationwide":o.st==="?"?"States: check offer":esc(o.st.join(" "))}</span>`);
- if(o.first&&-days(o.first)<=3&&META&&-days(META.generated.slice(0,10))<=1&&o.first>FIRST_RUN)c.unshift(`<span class="chip k">New</span>`);
- if(o.changed&&-days(o.changed)<=7&&o.prevAmt)c.unshift(`<span class="chip k">Was ${money(o.prevAmt)}</span>`);
- if(o.auto)c.push(`<span class="chip w">Auto-collected — verify details</span>`);
- else if(META&&!o.seen&&!o.custom)c.push(`<span class="chip w">Not on the bonus roundups — verify it's live</span>`);
- if(o.seen&&META){const a=-days(o.seen);if(a>1&&a<=STALE_DAYS)c.push(`<span class="chip w">Last listed ${fmt(o.seen)}</span>`)}
- return c.join("")}
 const OPEN=new Set();
-function intel(o){const od=odds(o),cl=chexLbl(o),dl=ddLbl(o);
- const c=[];if(od){const [l,k]=oddsLbl(od.p);c.push(`<span class="chip ${k}">Approval odds: ${l} · ~${od.p}%</span>`)}
- c.push(`<span class="chip ${cl[1]}">${cl[0]}</span>`);if(dl)c.push(`<span class="chip ${dl[1]}">${dl[0]}</span>`);
- return `<div class="chips">${c.join("")}</div><details class="more" data-det="${esc(o.id)}"${OPEN.has(o.id)?" open":""}><summary>Direct deposit workarounds &amp; ChexSystems</summary>${ddBlock(o)}${chexBlock(o)}</details>`}
+const DDW=`<abbr title="Money your employer (or Social Security, a pension, etc.) sends straight into the account automatically — usually your paycheck">direct deposits</abbr>`;
+function steps(o){const L=[],win=o.win&&o.win<365?` within ${o.win} days`:"";
+ const acct=!o.a||/^checking$/i.test(o.a)?"checking account":esc(o.a)+(/account|checking|savings/i.test(o.a)?"":" account");
+ L.push(`Open a ${acct}${o.branch?" <b>in a branch</b>":" online"}.`);
+ if(o.dep)L.push(`Deposit at least <b>${money(o.dep)}</b> of new money${win} and leave it there.${o.amt>=1000?" Bigger deposits earn a bigger bonus.":""}`);
+ else if(o.mdd)L.push(`Have at least <b>${money(o.mdd)} a month</b> in ${DDW}${o.win?` for the first ${o.win} days`:""}.`);
+ else if(o.dd>1)L.push(`Receive <b>${o.mindd?money(o.mindd)+"–"+money(o.dd):money(o.dd)}</b> in ${DDW}${win}.${o.mindd?" More deposits earn a bigger bonus.":""}`);
+ else if(o.dd===1)L.push(`Set up at least one ${DDW.replace("direct deposits","direct deposit")}${win} (any amount).`);
+ else if(o.spend)L.push(`Spend <b>${money(o.spend)}+ a month</b> on the debit card (no direct deposit needed).`);
+ else L.push(`No direct deposit needed.`);
+ if(o.tx)L.push(`Make <b>${o.tx} debit card purchases</b>${win}.`);
+ L.push(o.keep?`Keep it open at least <b>${o.keep} days</b> — then you can close it.`:`Keep it open about <b>6 months</b> before closing (the terms don't give an exact time).`);
+ return `<ol class="steps">${L.map(x=>`<li><span>${x}</span></li>`).join("")}</ol>`}
+function facts(o){const od=odds(o),cl=chexLbl(o),dl=ddLbl(o),F=[];
+ const fee=!o.fee||/see terms|varies|^—$/i.test(o.fee)?"Check the terms":/^none$/i.test(o.fee)?"None":esc(o.fee).replace(/,\s*waivable/i," a month (can be waived)").replace(/^(\$[\d.]+)$/,"$1 a month");
+ F.push(["Monthly fee",fee]);
+ F.push(["Credit check",{soft:"Soft — won't affect your score",hard:"Hard — may dip your score a little",varies:"Usually soft (some report hard)"}[o.pull]||"Not listed"]);
+ F.push(["Where",o.st==="ALL"?"Anywhere in the US":o.st==="?"?"Check the offer page":o.st.length>6?`<span title="${esc(o.st.join(", "))}">${o.st.length} states${S.profile.state&&o.st.includes(S.profile.state)?" incl. "+esc(S.profile.state):""}</span>`:esc(o.st.join(", "))]);
+ F.push(["Offer ends",o.exp?fmt(o.exp):"No end date listed"]);
+ F.push(["Earn it again",o.cd===-1?"Once per person":o.cd!=null?`Every ${o.cd} months`:"Not stated (often 1–2 yrs)"]);
+ F.push(["Approval odds",od?`<span class="dot ${oddsLbl(od.p)[1]}"></span>${oddsLbl(od.p)[0]} · ~${od.p}%`:`<span class="muted">${cl[0].replace(/^Chex: /,"ChexSystems: ")}</span>`]);
+ if(mreq(o)&&dl)F.push(["Paycheck needed?",/strict/.test(dl[0])?"Yes — use a real paycheck":"No — bank transfers usually count"]);
+ return `<dl class="facts">${F.map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>`}
+function headsUp(o){const H=[];if(o.note)H.push(esc(o.note));
+ if(o.auto)H.push("Collected automatically from bonus sites — confirm the details on the offer page before applying.");
+ else if(META&&!o.seen&&!o.custom)H.push("Not on the bonus roundups right now — make sure it's still live.");
+ if(o.seen&&META){const a=-days(o.seen);if(a>1&&a<=STALE_DAYS)H.push(`Last listed on bonus sites ${fmt(o.seen)} — it may be ending.`)}
+ return H.length?`<p class="heads"><b>Heads-up:</b> ${H.join(" ")}</p>`:""}
 function selStatus(o){const v=S.track[o.id]?.status||"";return `<select data-act="status" data-id="${esc(o.id)}" aria-label="Status for ${esc(o.b)}">${STATUS.map(([k,l])=>`<option value="${k}"${k===v?" selected":""}>${l}</option>`).join("")}</select>`}
-function card(o){const r=elig(o),t=S.track[o.id]||{};
- return `<article class="card ${r.length&&!t.status?"inel":""}" data-card="${esc(o.id)}"><div class="top"><div><h3>${esc(o.b)}</h3><small>${esc(o.a)}${o.custom?" · your offer":""}</small></div><div class="amt">${money(o.amt)}</div></div>
- <p class="req">${esc(o.req||"")}</p><div class="chips">${chips(o)}</div>
- ${intel(o)}
- ${o.note?`<p class="note">${esc(o.note)}</p>`:""}
- ${r.length?`<p class="why">${r.map(esc).join(" · ")}</p>`:S.profile.state?`<p class="why ok">You qualify</p>`:`<p class="why">Pick your state above to check eligibility</p>`}
- <div class="foot">${selStatus(o)}${/^https:\/\//.test(o.offerUrl||"")?`<a href="${esc(o.offerUrl)}" target="_blank" rel="noopener">Offer details ↗</a>`:""}${/^https:\/\//.test(o.url||"")?`<a href="${esc(o.url)}" target="_blank" rel="noopener">${o.auto?"Source ↗":"Bank site ↗"}</a>`:""}</div></article>`}
+function card(o){const r=elig(o),link=[o.offerUrl,o.url].find(u=>/^https:\/\//.test(u||""));
+ const tags=[];if(o.changed&&-days(o.changed)<=7&&o.prevAmt)tags.push(`<span class="tag">was ${money(o.prevAmt)}</span>`);
+ if(o.first&&-days(o.first)<=3&&META&&o.first>FIRST_RUN)tags.push(`<span class="tag new">New</span>`);
+ const qual=r.length?`<p class="qual no">${r.map(esc).join(" · ")}</p>`:S.profile.state?`<p class="qual yes">You qualify</p>`:`<p class="qual">Choose your state above to check if you qualify</p>`;
+ return `<article class="card ${r.length?"inel":""}" data-card="${esc(o.id)}">
+ <div class="top"><div><h3>${esc(o.b)}</h3><small>${esc(o.a||"Checking")}${o.custom?" · added by you":""}</small></div><div class="amtw"><div class="amt">${money(o.amt)}</div><small>bonus</small>${tags.join("")}</div></div>
+ ${qual}
+ <h4 class="lbl">How to earn it</h4>${steps(o)}
+ ${facts(o)}
+ ${headsUp(o)}
+ <details class="more" data-det="${esc(o.id)}"${OPEN.has(o.id)?" open":""}><summary>More details: paycheck alternatives &amp; approval data</summary>${o.req?`<h4>Offer summary</h4><p class="note">${esc(o.req)}</p>`:""}${ddBlock(o)}${chexBlock(o)}</details>
+ <div class="foot">${selStatus(o)}${link?`<a class="go" href="${esc(link)}" target="_blank" rel="noopener">View offer ↗</a>`:""}</div></article>`}
 function profBar(){const p=S.profile;
  return `<div class="panel prof"><label>Your state<select data-act="prof" data-k="state"><option value="">Choose…</option>${STATES.map(s=>`<option${s===p.state?" selected":""}>${s}</option>`).join("")}</select></label>
  <label>Direct deposit you can route each month<input type="number" inputmode="numeric" min="0" step="100" data-act="prof" data-k="ddCap" value="${+p.ddCap||0}"></label>
