@@ -52,7 +52,7 @@ header{padding:28px 0 8px}
 .hero-amt{display:block;font:500 clamp(56px,9vw,112px)/.92 var(--serif);letter-spacing:-.03em;color:var(--green);margin:0 0 12px;font-variant-numeric:lining-nums proportional-nums}
 .hero-amt sup{font-size:.42em;vertical-align:.95em;margin-right:.04em}
 .hero-main b{color:var(--ink);font-weight:600}
-.fresh{margin-top:14px!important;font-size:13px!important}
+.fresh{margin-top:14px!important;font-size:13px!important}.linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--green);text-decoration:underline;text-underline-offset:3px;cursor:pointer;min-height:24px}.linkbtn:disabled{color:var(--mute);text-decoration:none;cursor:default}.rfmsg{display:block;margin-top:4px;color:var(--mute)}
 .ledger{display:grid;gap:0;align-self:stretch;align-content:end;background:color-mix(in srgb,var(--sheet) 82%,transparent);border-radius:12px;padding:6px 18px;backdrop-filter:blur(2px)}
 .ledger div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;padding:12px 0;border-bottom:1px solid var(--rule);align-items:baseline}
 .ledger div:last-child{border-bottom:0}
@@ -596,6 +596,27 @@ function spiro(R,r,d,turns,cx,cy,s){let p="";const N=turns*180;for(let i=0;i<=N;
 function guilloche(){if(GUIL)return GUIL;const paths=[[96,42,60,21],[96,27,48,9],[80,33,56,11],[60,22,20,11]].map(([R,r,d,t],i)=>`<path d="${spiro(R,r,d,t,260,260,i===3?1.9:1.75)}" stroke-width="${i===3?.9:.55}"/>`).join("");
  const rings=[218,224,230].map(r=>`<circle cx="260" cy="260" r="${r}" stroke-width=".6"/>`).join("");
  GUIL=`<svg viewBox="0 0 520 520" fill="none" stroke="currentColor" aria-hidden="true">${rings}${paths}</svg>`;return GUIL}
+// ---- "Refresh offers": a signed-in user can start the GitHub refresh (via the refresh-offers Supabase function) ----
+let RF={st:"idle"};
+const tm=iso=>new Date(iso).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"});
+const plural=(n,w)=>`${n} ${w}${n===1?"":"s"}`;
+function refreshHtml(){if(!SB_ON||tab!=="find")return "";
+ if(!AUTH)return ` · <button class="linkbtn" data-act="acct">Sign in to refresh</button>`;
+ const msg={starting:"Checking the bonus sites… this takes about 15 seconds.",
+  done:RF.added||RF.changed?`Offers updated: ${[RF.added?plural(RF.added,"new offer"):"",RF.changed?plural(RF.changed,"changed amount"):""].filter(Boolean).join(", ")}.`:"Offers are up to date — nothing new on the bonus sites.",
+  busy:RF.next?`Offers were just refreshed. You can refresh again after ${tm(RF.next)}.`:"Offers were just refreshed.",
+  error:RF.msg||"Couldn't refresh right now. Try again in a few minutes."}[RF.st];
+ return ` · <button class="linkbtn" data-act="refresh-offers"${RF.st==="starting"?" disabled":""}>${RF.st==="starting"?"Refreshing…":"Refresh offers"}</button>`+
+  (msg?`<span class="rfmsg" role="status">${esc(msg)}</span>`:"")}
+async function startRefresh(){if(RF.st==="starting")return;RF={st:"starting"};render();
+ try{const j=await sb("/functions/v1/refresh-offers",{method:"POST"});
+  RF={st:"done",added:(j.added||[]).length,changed:j.changed||0};await loadOffers();toast(RF.added||RF.changed?"Offers updated":"Offers are up to date")}
+ catch(x){const b=x.body||{};
+  if(x.status===429)RF={st:"busy",next:b.nextAllowedAt};
+  else if(x.status===401){RF={st:"idle"};AERR="Sign in again to refresh offers."}
+  else RF={st:"error",msg:x instanceof TypeError?"Couldn't reach the refresh service. Check your connection.":b.message||""}}
+ render()}
+document.addEventListener("click",e=>{if(e.target.closest&&e.target.closest('[data-act="refresh-offers"]'))startRefresh()});
 function stats(){
  const list=all();let pot=0,n=0,prog=0,earn=0,np=0,ne=0;const y=today().slice(0,4);
  for(const o of list){const t=S.track[o.id]||{};if(!t.status&&!elig(o).length&&S.profile.state){pot+=o.amt;n++}
@@ -605,7 +626,7 @@ function stats(){
  const lead=S.profile.state?`in bonuses from <b>${n} offers</b> you qualify for in ${esc(S.profile.state)} right now.`:`in bonuses waiting. Choose your state below to see which ones are yours.`;
  const fresh=$("#fresh")?.textContent||"";
  $("#stats").innerHTML=`<div class="guil">${guilloche()}</div><div class="guil l">${guilloche()}</div>
- <div class="hero-main"><span class="hero-amt"><sup>$</sup>${Math.round(S.profile.state?pot:all().reduce((s,o)=>s+(elig(o).length?0:o.amt),0)).toLocaleString("en-US")}</span><p>${lead}</p><p class="fresh" id="fresh">${esc(fresh||"Loading the latest offers…")}</p></div>
+ <div class="hero-main"><span class="hero-amt"><sup>$</sup>${Math.round(S.profile.state?pot:all().reduce((s,o)=>s+(elig(o).length?0:o.amt),0)).toLocaleString("en-US")}</span><p>${lead}</p><p class="fresh"><span id="fresh">${esc(fresh||"Loading the latest offers…")}</span>${refreshHtml()}</p></div>
  <div class="ledger">
   <div><span>Working on now</span><b>${money(prog)}</b><small>${np?`${np} account${np===1?"":"s"} applied for or open`:"Nothing in progress yet"}</small></div>
   <div><span>Earned in ${y}</span><b>${money(earn)}</b><small>${ne?`${ne} bonus${ne===1?"":"es"} paid`:"Your first bonus will show here"}</small></div>
@@ -630,7 +651,7 @@ const STNAME={AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California
 function whereHtml(o){if(o.st==="ALL")return "Anywhere in the US"+(o.natSrc?`<span class="stsrc">${o.natSrc==="online"?"Online-only account":`Confirmed ${o.natSrc==="bank"?`on ${esc(o.b)}'s website`:`by ${esc(o.natSrc)}`}`}</span>`:"");
  if(!Array.isArray(o.st)||!o.st.length)return o.stWasAll?`<span class="muted">Not confirmed nationwide — check the offer page for who can apply</span>`:`<span class="muted">Not listed by the bank — check the offer page</span>`;
  const me=S.profile.state,chk=o.stCheck,stn=a=>a==="ALL"?"nationwide":a.map(x=>STNAME[x]||x).join(", "),
-  src=(o.stSrc==="branches"?`<span class="stsrc">Where it has branches${o.stWasAll?" — not confirmed nationwide":""}${chk&&chk.agrees?` · matches ${esc(chk.src)}`:""}</span>`:o.stSrc==="hq"?`<span class="stsrc">Where it's based — check who can join</span>`:o.stSrc==="article"?`<span class="stsrc">From the bonus roundups — not matched in the federal bank lists</span>`:"")
+  src=(o.stSrc==="branches"?`<span class="stsrc">Where it has branches${o.stWasAll?" — not confirmed nationwide":""}${chk&&chk.agrees?` · matches ${esc(chk.src)}`:""}</span>`:o.stSrc==="hq"?`<span class="stsrc">Where it's based — check who can join</span>`:o.stSrc==="article"?`<span class="stsrc">${o.quick?"From the bonus sites — checked against the federal bank lists at the next daily update":"From the bonus roundups — not matched in the federal bank lists"}</span>`:"")
    +(chk&&!chk.agrees?`<span class="stsrc stdiff">${esc(chk.src)} lists: ${esc(stn(chk.st))}</span>`:"");
  const names=[...o.st].sort((a,b)=>(STNAME[a]||a).localeCompare(STNAME[b]||b));
  if(names.length<=3)return names.map(x=>esc(STNAME[x]||x)).join(", ")+src;
@@ -659,6 +680,7 @@ function verifyLine(o){const c=o.check;if(!c||c.status!=="confirmed")return"";
 function headsUp(o){const H=[],c=o.check||{};if(o.note)H.push(esc(o.note));
  if(c.status==="differs")H.push(`${esc(o.b)}'s own offer page mentions ${c.amts.map(money).join(", ")} — not ${money(o.amt)}. The offer may have changed, or the bank lists a different tier; check before applying.`);
  if(c.status==="bad-link")H.push(`The link the bonus sites gave doesn't go to ${esc(o.b)}'s website${c.why?` (${esc(c.why)})`:""}, so it's been removed. Use the source article to find the offer.`);
+ if(o.quick)H.push(`Just added from the bonus sites. Where it's available, the bank link and the checks are filled in at the next daily update — confirm on ${esc(o.b)}'s site before applying.`);
  if(o.refExpired)H.push(`${esc((o.ref&&o.ref.src)||"A bonus roundup")} lists this offer as ending ${fmt(o.refExpired)} — check ${esc(o.b)}'s page to see if it's still running.`);
  if(o.crawl)H.push(`Found on ${esc(o.b)}'s own website by this site's crawler${o.first?` on ${fmt(o.first).replace(/, \d{4}$/,"")}`:""}. Nobody has reviewed it yet, so read the offer page and confirm the terms before applying.`);
  else if(o.auto&&c.status!=="confirmed")H.push("Collected automatically from bonus sites — confirm the details on the offer page before applying.");
@@ -1193,7 +1215,7 @@ async function sb(path,{method="GET",body,auth=true,headers={}}={},retried){
  const r=await fetch(SB_URL+path,{method,headers:h,body:body==null?undefined:JSON.stringify(body)});
  if(r.status===401&&auth&&AUTH&&!retried){await refreshAuth();return sb(path,{method,body,auth,headers},true)}
  const t=await r.text();let j=null;try{j=t?JSON.parse(t):null}catch(e){}
- if(!r.ok){const x=new Error(j&&(j.msg||j.error_description||j.message||j.error)||"Error "+r.status);x.status=r.status;x.code=j&&(j.error_code||j.code);throw x}
+ if(!r.ok){const x=new Error(j&&(j.msg||j.error_description||j.message||j.error)||"Error "+r.status);x.status=r.status;x.code=j&&(j.error_code||j.code);x.body=j;throw x}
  return j}
 function authErr(x){const m=String(x&&x.message||""),c=x&&x.code||"";
  if(x&&x.status===429||/rate limit/i.test(m))return "Too many tries. Wait a few minutes and try again.";
@@ -1276,15 +1298,22 @@ function ago(iso){const m=Math.round((Date.now()-new Date(iso))/6e4);return m<2?
 function freshLine(){const e=$("#fresh");if(!e)return;if(!META){e.textContent="Showing the built-in offer list (researched Nov 26, 2026).";return}
  const ok=META.sources.filter(s=>s.ok).map(s=>s.name),bad=META.sources.filter(s=>!s.ok);
  e.textContent=`Offers checked ${ago(META.generated)}`+(ok.length?` from ${ok.join(" and ")}.`:".")+(bad.length?` Couldn't read ${bad.map(s=>s.name).join(" or ")} this time${bad.some(s=>s.lastOk)?", so its last good data is shown":""}.`:"")}
-(async()=>{try{const r=await fetch("data/offers.json",{cache:"no-store"});if(!r.ok)throw 0;const j=await r.json();
+let OFFERS_OK=false; // once live offers have loaded, a failed re-check keeps them
+async function getJSON(u,opt){const r=await fetch(u,{cache:"no-store",...opt});if(!r.ok)throw new Error(r.status);return r.json()}
+async function loadOffers(){try{
+ const [daily,quick]=await Promise.allSettled([getJSON("data/offers.json"),
+  SB_ON?getJSON(SB_URL+"/rest/v1/site_data?key=eq.offers&select=data",{headers:{apikey:SB_KEY}}).then(r=>r&&r[0]&&r[0].data):Promise.reject(0)]);
+ const cand=[daily,quick].filter(x=>x.status==="fulfilled"&&x.value&&Array.isArray(x.value.offers)).map(x=>x.value);
+ if(!cand.length)throw 0;const j=cand.sort((a,b)=>String(b.generated).localeCompare(String(a.generated)))[0];
  if(!Array.isArray(j.offers)||j.offers.length<10)throw 0;const NUM=["amt","dd","mindd","mdd","dep","win","tx","keep","cd","spend","prevAmt"];
  const clean=o=>{const x={...o};for(const k of NUM)x[k]=x[k]==null||x[k]===""||!isFinite(+x[k])?(k==="keep"||k==="cd"?null:undefined):+x[k];
   x.st=Array.isArray(x.st)?x.st.filter(s=>STATES.includes(s)):x.st==="ALL"?"ALL":"?";if(Array.isArray(x.st)&&!x.st.length)x.st="?";
   for(const k of ["id","b","a","req","note","fee","pull","url","offerUrl","exp","seen","first","changed","t"])if(x[k]!=null)x[k]=String(x[k]);
   if(x.check&&typeof x.check==="object"){const c=x.check;x.check={status:String(c.status||""),on:String(c.on||""),url:String(c.url||""),why:String(c.why||""),amts:Array.isArray(c.amts)?c.amts.map(Number).filter(isFinite).slice(0,8):[]}}else delete x.check;return x};
  const L=j.offers.filter(o=>o&&o.id&&o.b&&+o.amt>0).map(clean);if(L.length<10)throw 0;OFFERS.length=0;OFFERS.push(...L);META=j;
- FIRST_RUN=j.offers.reduce((m,o)=>o.first&&(!m||o.first<m)?o.first:m,"");}catch(e){META=null}
- freshLine();render()})();
+ FIRST_RUN=j.offers.reduce((m,o)=>o.first&&(!m||o.first<m)?o.first:m,"");}catch(e){if(!OFFERS_OK){META=null;freshLine();render()}return}OFFERS_OK=true;
+ freshLine();render()}
+loadOffers();
 setInterval(freshLine,60000);
 const h=(location.hash||"").slice(1);if(["find","mine","cal","guide","data"].includes(h))tab=h;
 render();

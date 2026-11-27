@@ -29,6 +29,8 @@ jobs:
         with:
           node-version: "22"
       - run: npm install --no-audit --no-fund
+      - name: The Refresh button's TypeScript roundup parsers match the Python ones
+        run: npm run parity
       - run: npx playwright install --with-deps chromium
       - name: Browser tests (setup, statuses, planner, Start over, accounts, layout)
         run: npm test
