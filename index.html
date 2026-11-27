@@ -209,6 +209,58 @@ abbr[title]{text-decoration:underline dotted;text-underline-offset:3px;cursor:he
 .paid .big{position:absolute;left:-80px;top:-80px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff6c9,#f7cf5c 45%,#e0a52a);border:7px solid #a8720e;color:#6e4806;font:700 112px/146px var(--serif);text-align:center;box-shadow:0 0 0 14px #f2b84b40,0 24px 60px #0007,inset 0 -8px 0 #0002}
 .paid .msg{position:absolute;left:-200px;width:400px;top:96px;text-align:center;color:#fff;font:700 40px/1.05 var(--serif);text-shadow:0 3px 0 #123d2e,0 10px 30px #000a}
 .paid .msg span{display:block;color:#f7cf5c;font-size:52px;margin-top:4px}
+
+/* my accounts: next moves, plan, timeline */
+.moves{margin:6px 0 18px}
+.mlist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.mv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 18px 14px 20px;background:var(--sheet);border:1px solid var(--rule);border-radius:12px;position:relative}
+.mv::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:var(--rule)}
+.mv.due::before{background:var(--brick)}.mv.close::before,.mv.go::before{background:var(--gold)}.mv.plan::before{background:var(--green)}.mv.wait::before{background:var(--mute)}
+.mv b{font-weight:600}.mv p{margin:2px 0 0;font-size:14px;color:var(--mute)}
+.mvact{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.planbox{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:20px;align-items:end;margin:0 0 18px}
+.planbox h3{margin-bottom:4px}.planbox .note{margin:0}.planbox b{color:var(--ink)}
+.tl{margin:0}
+.tl-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:10px}
+.tl-head .sec{margin:0}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px;color:var(--mute)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend .seg{position:static;display:inline-block;width:18px;height:8px}
+.legend .mk{position:static;transform:none;display:inline-block}
+.tl-scroll{overflow-x:auto;background:var(--sheet);border:1px solid var(--rule);border-radius:14px}
+.tl-grid{min-width:760px;padding:6px 0 10px}
+.tl-row{display:grid;grid-template-columns:190px minmax(0,1fr);align-items:center;min-height:48px;border-bottom:1px solid color-mix(in srgb,var(--rule) 60%,transparent)}
+.tl-row:last-child{border-bottom:0}
+.tl-name{position:sticky;left:0;z-index:4;background:var(--sheet);text-align:left;border:0;padding:6px 14px 6px 18px;font:inherit;color:var(--ink);cursor:pointer;min-height:44px;display:flex;flex-direction:column;justify-content:center}
+.tl-name b{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tl-name small{font-size:12px;color:var(--mute)}
+div.tl-name{cursor:default}
+.tl-track{position:relative;height:48px;margin-right:18px}
+.tl-axis{min-height:30px}.tl-axis .tl-track{height:30px}
+.tl-axis span{position:absolute;top:8px;font-size:12px;color:var(--mute);padding-left:5px;border-left:1px solid var(--rule);height:16px;line-height:16px;white-space:nowrap}
+.today-l{position:absolute;top:6px;transform:translateX(-50%);font:600 11px var(--sans);font-style:normal;color:#fff;background:var(--gold);padding:1px 6px;border-radius:4px;z-index:1}
+.today{position:absolute;top:0;bottom:0;width:0;border-left:1.5px solid var(--gold);z-index:1}
+.seg{position:absolute;top:18px;height:12px;border-radius:6px;overflow:hidden}
+.seg.wait{background:repeating-linear-gradient(-45deg,var(--chip) 0 4px,color-mix(in srgb,var(--mute) 30%,var(--chip)) 4px 8px)}
+.seg.work{background:color-mix(in srgb,var(--green) 28%,var(--sheet))}
+.seg.work u{display:block;height:100%;background:var(--green);text-decoration:none}
+.seg.hold{background:color-mix(in srgb,var(--green) 12%,var(--sheet));border:1px solid color-mix(in srgb,var(--green) 35%,transparent)}
+.seg.idle{top:23px;height:2px;border-radius:0;background:repeating-linear-gradient(90deg,var(--mute) 0 3px,transparent 3px 7px)}
+.seg.plan{background:transparent;border:1.5px dashed var(--gold)}
+.seg.planhold{background:transparent;border:1px dotted color-mix(in srgb,var(--gold) 60%,transparent)}
+.mk{position:absolute;top:24px;width:14px;height:14px;transform:translate(-50%,-50%);border-radius:50%;z-index:2;border:2px solid var(--sheet)}
+.mk.paid{background:var(--gold);width:16px;height:16px}
+.mk.pay{background:transparent;border:1.5px dashed var(--gold)}
+.mk.closed{background:var(--ink);border-radius:3px;width:12px;height:12px}
+.mk.again{background:var(--sheet);border:2px solid var(--green);transform:translate(-50%,-50%) rotate(45deg);border-radius:2px;width:12px;height:12px}
+.mk.denied{background:var(--brick);border-radius:2px;transform:translate(-50%,-50%) rotate(45deg);width:11px;height:11px}
+.legend .mk.again,.legend .mk.denied{transform:rotate(45deg)}
+.tl-row.ghost .tl-name b{color:var(--gold)}
+.tl-sep{padding:14px 18px 6px;font:600 13px var(--sans);color:var(--gold);border-top:1px solid var(--rule)}
+.tl-add{position:absolute;top:24px;transform:translate(-50%,-50%);width:26px;height:26px;border-radius:50%;border:1.5px solid var(--gold);background:var(--sheet);color:var(--gold);font:600 16px/1 var(--sans);cursor:pointer;z-index:3;padding:0}
+.tl-add:hover{background:var(--gold);color:#fff}
+@media(max-width:700px){.mv{grid-template-columns:minmax(0,1fr)}.mvact{justify-content:flex-start}.planbox{grid-template-columns:minmax(0,1fr)}
+ .tl-grid{min-width:0}.tl-row{grid-template-columns:minmax(0,1fr);min-height:0}.tl-name{position:static;flex-direction:row;justify-content:flex-start;align-items:baseline;gap:8px;min-height:0;padding:10px 14px 0}
+ .tl-track{margin:0 14px;height:34px}.seg{top:11px}.mk,.tl-add{top:17px}.seg.idle{top:16px}.tl-axis .tl-name{display:none}.tl-axis span:not(.q){display:none}.tl-axis{min-height:30px}}
 @media(prefers-reduced-motion:reduce){.toast,.card,.more summary::before{transition:none}}
 @media(max-width:1080px){.findwrap{grid-template-columns:minmax(0,1fr)}
  .side{position:static;max-height:none;overflow:visible;padding:0;background:var(--sheet);border:1px solid var(--rule);border-radius:14px}
@@ -385,7 +437,7 @@ const DOC_SENS="https://www.doctorofcredit.com/banks-credit-unions-chexsystems-i
 const STATUS=[["","Not started"],["planned","Planning to apply"],["applied","Applied"],["open","Open — working on it"],["earned","Bonus received"],["closed","Closed"],["denied","Denied"]];
 const DEF_KEEP=180,DEF_CD=12;
 let S={profile:{state:"",ddCap:3000,cash:5000,mil:false},track:{},custom:[],v:1};
-let META=null,FIRST_RUN="",SIDE_OPEN=false,STAGE="";const STALE_DAYS=7;
+let META=null,FIRST_RUN="",SIDE_OPEN=false,STAGE="",PLANALL=false;const STALE_DAYS=7;
 let tab="find",F={q:"",type:"",sort:"amt",inel:false,nodd:false,chexok:false,ddok:false},db=null,ref=null,saveT=null;
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -405,7 +457,8 @@ function toast(m,go,undo){const t=$("#toast");t.innerHTML=esc(m)+(go?` <button d
 let askReset=false,undoSnap=null;
 function used(){let u=0;for(const o of all()){const t=S.track[o.id];if(t&&t.status==="open"&&(!t.opened||days(addD(t.opened,o.win||90))>=0))u+=mreq(o)}return u}
 function reElig(o){ // latest bonus/open in same churn group
- let last=null;for(const x of all()){if(grp(x)!==grp(o))continue;const t=S.track[x.id];if(!t)continue;const base=t.bonusDate||(["open","earned","closed"].includes(t.status)?t.opened:null);if(base&&(!last||base>last.base))last={base,x}}
+ let last=null;for(const x of all()){if(grp(x)!==grp(o))continue;const t0=S.track[x.id];if(!t0)continue;
+  for(const t of [t0,...(t0.history||[])]){const base=t.bonusDate||(["open","earned","closed"].includes(t.status)?t.opened:null);if(base&&(!last||base>last.base))last={base,x}}}
  if(!last)return null;const cd=last.x.cd??DEF_CD;if(cd===-1)return{life:1};return{date:addM(last.base,cd),assumed:last.x.cd==null}}
 function elig(o){
  const r=[],p=S.profile,st=S.track[o.id]?.status;
@@ -658,31 +711,114 @@ function viewFind(){
 function mineCard(o){const t=S.track[o.id],dl=t.opened?addD(t.opened,o.win||90):null,sc=t.opened?addD(t.opened,o.keep||DEF_KEEP):null,re=reElig(o);
  const need=o.dd||0,pct=need>1?Math.min(100,(+t.ddDone||0)/need*100):0,tp=o.tx?Math.min(100,(+t.txDone||0)/o.tx*100):0;
  const inp=(k,l)=>`<label>${l}<input type="date" data-act="t" data-id="${esc(o.id)}" data-k="${k}" value="${esc(t[k]||"")}"></label>`;
- const c=[];if(dl&&t.status==="open")c.push(`<span class="chip ${days(dl)<14?"w":""}">Requirements due ${fmt(dl)} (${days(dl)} days)</span>`);
+ const c=[];if(t.status==="planned")c.push(`<span class="chip k">${t.planOn?"Apply on "+fmt(t.planOn):"No date yet"}</span>`);if(t.history?.length)c.push(`<span class="chip">Round ${t.history.length+1}: earned ${money(t.history.reduce((s,h)=>s+(+h.got||0),0))} before</span>`);
+ if(dl&&t.status==="open")c.push(`<span class="chip ${days(dl)<14?"w":""}">Requirements due ${fmt(dl)} (${days(dl)} days)</span>`);
  if(sc&&["open","earned"].includes(t.status))c.push(`<span class="chip ${days(sc)<=0?"g":""}">${days(sc)<=0?"Safe to close now":"Safe to close after "+fmt(sc)}${o.keep?"":" (assumed)"}</span>`);
  if(re&&re.life)c.push(`<span class="chip">One-time bonus</span>`);else if(re&&re.date)c.push(`<span class="chip k">Churn again ${fmt(re.date)}${re.assumed?" (assumed)":""}</span>`);
  return `<article class="card" data-card="${esc(o.id)}"><div class="top"><div><h3>${esc(o.b)}</h3><small>${esc(o.a)}</small></div><div class="amt">${money(o.amt)}</div></div>
  <p class="req">${esc(o.req||"")}</p><div class="chips">${c.join("")||'<span class="chip">Add dates to see deadlines</span>'}</div>
- <div class="dates">${inp("applied","Applied")}${inp("opened","Opened")}${inp("bonusDate","Bonus posted")}${inp("closed","Closed")}</div>
+ <div class="dates">${t.status==="planned"?inp("planOn","Plan to apply on"):""}${inp("applied","Applied")}${inp("opened","Opened")}${inp("bonusDate","Bonus posted")}${inp("closed","Closed")}</div>
  ${["open","applied"].includes(t.status)?`<div class="two">${need>1?`<label>DD received so far<input type="number" min="0" step="100" data-act="t" data-id="${esc(o.id)}" data-k="ddDone" value="${+t.ddDone||0}"><div class="prog"><i style="width:${pct}%"></i></div><span class="note">${money(t.ddDone)} of ${money(need)}</span></label>`:""}
  ${o.tx?`<label>Debit transactions done<input type="number" min="0" data-act="t" data-id="${esc(o.id)}" data-k="txDone" value="${+t.txDone||0}"><div class="prog"><i style="width:${tp}%"></i></div><span class="note">${+t.txDone||0} of ${o.tx}</span></label>`:""}</div>`:""}
  ${t.status==="earned"||t.status==="closed"?`<label>Bonus amount received<input type="number" min="0" data-act="t" data-id="${esc(o.id)}" data-k="got" value="${esc(t.got??o.amt)}"></label>`:""}
  <label>Notes<textarea data-act="t" data-id="${esc(o.id)}" data-k="notes" placeholder="Login, which paycheck you routed, fee waiver…">${esc(t.notes||"")}</textarea></label>
  <div class="foot">${selStatus(o)}</div></article>`}
 const STAGES=[["planned","Planning"],["applied","Applied"],["open","Open"],["earned","Paid"],["closed","Closed"],["denied","Denied"]];
-function viewMine(){const L=all().filter(o=>S.track[o.id]?.status);
- if(!L.length)return `<div class="empty"><b>No accounts yet.</b><br>On Find offers, pick a status like "Applied" on any offer and it moves here with its deadlines.</div>`;
- const strip=`<div class="stages" role="group" aria-label="Filter by stage">${STAGES.map(([k,l])=>{const c=L.filter(o=>S.track[o.id].status===k).length;return `<button class="stage${c?"":" zero"}" data-act="stage" data-k="${k}" aria-pressed="${STAGE===k}"><b>${c}</b><span>${l}</span></button>`}).join("")}</div>`;
+const feeAmt=o=>{const m=String(o.fee||"").match(/\$(\d+(?:\.\d\d)?)/);return m&&!/^none$/i.test(o.fee)?+m[1]:0};
+const keepD=o=>o.keep||DEF_KEEP;
+// ---------- planner: schedule new applications around paycheck capacity and a monthly pace ----------
+function plan(){const p=S.profile,cap=+p.ddCap||0,pace=+p.pace||3,T0=today(),H=182,out=[],act=[];
+ for(const o of all()){const t=S.track[o.id];if(!t)continue;
+  if(t.status==="open"&&t.opened){const end=addD(t.opened,o.win||90);if(end>T0)act.push({end,m:mreq(o)})}
+  if(t.status==="applied")act.push({end:addD(T0,(o.win||90)),m:mreq(o)})}
+ const busy=new Set(all().filter(o=>["planned","applied","open"].includes(S.track[o.id]?.status)).map(grp));
+ const recentApps=all().map(o=>S.track[o.id]?.applied).filter(Boolean);
+ const best={};
+ for(const o of all()){if(busy.has(grp(o)))continue;const t=S.track[o.id];if(t&&["applied","open","planned"].includes(t.status))continue;
+  const r=elig(o),hard=r.filter(x=>!/^Re-eligible|^Needs ~/.test(x));if(hard.length)continue;
+  const re=reElig(o);if(re&&re.life)continue;const from=re&&re.date&&re.date>T0?re.date:T0;
+  if(from>addD(T0,H))continue;if(o.exp&&o.exp<addD(from,7))continue;
+  const od=odds(o),pf=od?od.p/100:.75,m=mreq(o);if(m>cap)continue;
+  const sens=(CHX[CHK(o)]||{}).s==="high";
+  const score=o.amt*pf/(1+m/2500)-feeAmt(o)*3+(sens?40:0)+(o.check?.status==="confirmed"?15:0)-(o.auto?20:0);
+  const k=grp(o);if(!best[k]||best[k].score<score)best[k]={o,score,from,m,od,sens}}
+ const C=Object.values(best).sort((a,b)=>b.score-a.score);
+ for(let w=0;w*7<=H&&C.length;w++){const d=addD(T0,w*7);
+  let free=cap-act.filter(a=>a.end>d).reduce((s,a)=>s+a.m,0);
+  const inWin=x=>x>addD(d,-30)&&x<=d;let n=recentApps.filter(inWin).length+out.filter(x=>inWin(x.on)).length;
+  for(let i=0;i<C.length&&n<pace;i++){const c=C[i];if(c.from>d||c.m>free)continue;
+   out.push({o:c.o,on:d,m:c.m,od:c.od,sens:c.sens,end:addD(d,c.o.win||90),close:addD(d,keepD(c.o)+7),pay:addD(d,(c.o.win||90)+45)});
+   act.push({end:addD(d,c.o.win||90),m:c.m});free-=c.m;n++;C.splice(i,1);i--}}
+ return out}
+function planOffer(id,date){const t=S.track[id];
+ if(t&&["closed","earned","denied"].includes(t.status)){const {history,...rest}=t;S.track[id]={history:[...(history||[]),rest],status:"planned",planOn:date,u:now()}}
+ else S.track[id]={...(t||{}),status:"planned",planOn:date,u:now()};
+ save();render();toast(`Planned: apply on ${fmt(date)}`,"cal")}
+// ---------- "what to do next" ----------
+function moves(P){const M=[],T0=today();
+ for(const o of all()){const t=S.track[o.id];if(!t||!t.status)continue;const id=esc(o.id),B=esc(o.b);
+  if(t.status==="open"&&t.opened){const dl=addD(t.opened,o.win||90),left=days(dl),need=o.dd>1?o.dd:0,got=+t.ddDone||0,txl=(o.tx||0)-(+t.txDone||0);
+   const todo=[need&&got<need?`${money(need-got)} more in direct deposits`:"",txl>0?`${txl} more debit purchase${txl===1?"":"s"}`:""].filter(Boolean);
+   if(todo.length&&left<=30)M.push({p:left<0?0:1,kind:"due",t:`${left<0?"Overdue":"Due in "+left+" day"+(left===1?"":"s")}: ${B}`,b:`Still needed: ${todo.join(" and ")} by ${fmt(dl)}. Update your progress below as deposits land.`,a:[]});
+   else if(!todo.length&&left<0)M.push({p:3,kind:"wait",t:`Waiting for ${B} to pay`,b:`Requirements were due ${fmt(dl)} and look done. Bonuses usually post within about 8 weeks.`,a:[["Mark paid","earned",id]]})}
+  if(t.status==="earned"){const sc=t.opened?addD(t.opened,keepD(o)):T0,re=reElig(o);
+   if(sc<=T0)M.push({p:2,kind:"close",t:`Close ${B} now`,b:`It's past the safe-to-close date${feeAmt(o)?`, and it can charge ${money(feeAmt(o))} a month`:""}.${re&&re.date?` You can earn this bonus again from ${fmt(re.date)}.`:""}`,a:[["Mark closed","closed",id]]});
+   else M.push({p:5,kind:"hold",t:`Keep ${B} open until ${fmt(sc)}`,b:`Closing earlier can cost you the bonus.${feeAmt(o)?` Meet the fee waiver until then so the ${money(feeAmt(o))} monthly fee doesn't eat into it.`:""}`,a:[]})}
+  if(t.status==="applied"&&t.applied&&-days(t.applied)>=14)M.push({p:3,kind:"wait",t:`No answer from ${B}?`,b:`You applied ${-days(t.applied)} days ago. Call or check your email, then update the status.`,a:[["It's open","open",id],["Denied","denied",id]]});
+  if(t.status==="planned"&&t.planOn&&t.planOn<=T0)M.push({p:1,kind:"go",t:`Time to apply to ${B}`,b:`You planned this for ${fmt(t.planOn)}. ${o.req?esc(o.req):""}`,a:[["I applied","applied",id]]});
+  if(t.status==="open"&&feeAmt(o)&&!M.some(m=>m.t.includes(B)))M.push({p:6,kind:"hold",t:`Watch the fee at ${B}`,b:`It charges ${money(feeAmt(o))} a month${/waiv/i.test(o.fee)?" unless you meet the fee waiver, usually a minimum balance or direct deposit":""}.`,a:[]})}
+ for(const s of P.slice(0,3)){const o=s.o,now_=s.on<=addD(T0,6);
+  M.push({p:now_?2:4,kind:"plan",t:`${now_?"Apply now":"Apply "+fmt(s.on).replace(/, \d{4}$/,"")}: ${esc(o.b)} for ${money(o.amt)}`,b:`${mreq(o)?`Uses ${money(s.m)} a month of your paycheck until ${fmt(s.end)}.`:"No paycheck needed."}${s.od?` Approval odds ${oddsLbl(s.od.p)[0].toLowerCase()}.`:""}${s.sens?" This bank is strict about recent applications, so it's early in the plan.":""}`,a:[["Add to my plan","plan",esc(o.id),s.on]]})}
+ return M.sort((a,b)=>a.p-b.p)}
+function movesHtml(M){if(!M.length)return "";
+ return `<section class="moves"><h2 class="sec">What to do next</h2><ol class="mlist">${M.slice(0,7).map(m=>`<li class="mv ${m.kind}"><div><b>${m.t}</b><p>${m.b}</p></div>${m.a.length?`<div class="mvact">${m.a.map(([l,k,id,d])=>`<button class="btn ${k==="plan"?"":"ghost"}" data-act="nm" data-k="${k}" data-id="${id}"${d?` data-d="${d}"`:""}>${l}</button>`).join("")}</div>`:""}</li>`).join("")}</ol></section>`}
+// ---------- timeline ----------
+function timeline(P){const T0=today(),rows=[];
+ const L=all().filter(o=>S.track[o.id]?.status&&(!STAGE||S.track[o.id].status===STAGE));
+ for(const o of L){const t=S.track[o.id];rows.push({o,t,cyc:[...(t.history||[]),t]})}
+ const ds=[addD(T0,-45)];for(const r of rows)for(const c of r.cyc)for(const k of ["planOn","applied","opened","bonusDate","closed"])if(c[k])ds.push(c[k]);
+ let start=ds.sort()[0];if(start<addD(T0,-270))start=addD(T0,-270);start=start.slice(0,8)+"01";let end=addD(T0,200);
+ for(const r of rows){const t=r.t;if(t.opened)ds.push(addD(t.opened,keepD(r.o)));}
+ const last=ds.sort().at(-1);if(last>end)end=last;if(end>addD(T0,400))end=addD(T0,400);
+ const S0=D(start),SPAN=D(end)-S0,x=d=>Math.max(0,Math.min(100,(D(d)-S0)/SPAN*100)),w=(a,b)=>Math.max(.6,x(b)-x(a));
+ const seg=(cls,a,b,tip)=>b>start&&a<end?`<i class="seg ${cls}" style="left:${x(a)}%;width:${w(a,b)}%" title="${esc(tip)}"></i>`:"";
+ const mk=(cls,d,tip)=>d>=start&&d<=end?`<b class="mk ${cls}" style="left:${x(d)}%" title="${esc(tip)}"></b>`:"";
+ const months=[];{let d=D(start);while(d<=D(end)){const i=iso(d);months.push(`<span class="${d.getMonth()%3===0?"q":""}" style="left:${x(i)}%">${d.toLocaleDateString("en-US",{month:"short"})}${d.getMonth()===0?" "+d.getFullYear():""}</span>`);d.setMonth(d.getMonth()+1)}}
+ const bars=(o,c)=>{let s="";const win=o.win||90;
+  if(c.status==="planned"&&c.planOn)s+=seg("plan",c.planOn,addD(c.planOn,win),`Planned: apply ${fmt(c.planOn)}`);
+  if(c.applied)s+=seg("wait",c.applied,c.opened||(c.status==="applied"?T0:c.applied),`Applied ${fmt(c.applied)}`);
+  if(c.opened){const dl=addD(c.opened,win),sc=addD(c.opened,keepD(o)),stop=c.closed||T0;
+   const need=o.dd>1?o.dd:0,pct=need?Math.min(100,(+c.ddDone||0)/need*100):(c.bonusDate?100:0);
+   s+=seg("work",c.opened,dl,`Requirements window: ${fmt(c.opened)} to ${fmt(dl)}`).replace('"></i>',`"><u style="width:${c.bonusDate?100:pct}%"></u></i>`);
+   s+=seg("hold",dl,c.closed&&c.closed<sc?c.closed:sc,`Keep open until ${fmt(sc)}`);
+   if(!c.closed&&["earned","open"].includes(c.status)&&sc<stop)s+=seg("idle",sc,stop,"Safe to close any time");}
+  if(c.bonusDate)s+=mk("paid",c.bonusDate,`Bonus paid ${fmt(c.bonusDate)}${c.got?": "+money(c.got):""}`);
+  if(c.closed)s+=mk("closed",c.closed,`Closed ${fmt(c.closed)}`);
+  if(c.status==="denied"&&c.applied)s+=mk("denied",c.applied,`Denied (applied ${fmt(c.applied)})`);
+  return s};
+ const body=rows.map(({o,t,cyc})=>{const re=["earned","closed"].includes(t.status)?reElig(o):null;
+  return `<div class="tl-row"><button class="tl-name" data-act="jump" data-id="${esc(o.id)}"><b>${esc(o.b)}</b><small>${STAGES.find(s=>s[0]===t.status)?.[1]||""}, ${money(o.amt)}</small></button><div class="tl-track">${cyc.map(c=>bars(o,c)).join("")}${re&&re.date?mk("again",re.date,`Eligible again ${fmt(re.date)}`):""}<i class="today" style="left:${x(T0)}%"></i></div></div>`}).join("");
+ const ghost=STAGE?"":P.slice(0,PLANALL?99:6).map(s=>`<div class="tl-row ghost"><div class="tl-name"><b>${esc(s.o.b)}</b><small>Suggested, ${money(s.o.amt)}</small></div><div class="tl-track">${seg("plan",s.on,s.end,`Suggested: apply ${fmt(s.on)}, requirements until ${fmt(s.end)}`)}${seg("planhold",s.end,s.close,`Keep open until about ${fmt(s.close)}`)}${mk("pay",s.pay,`Bonus usually posts around ${fmt(s.pay)}`)}<i class="today" style="left:${x(T0)}%"></i><button class="tl-add" data-act="nm" data-k="plan" data-id="${esc(s.o.id)}" data-d="${s.on}" style="left:${x(s.on)}%" title="Add to my plan">+</button></div></div>`).join("");
+ return `<section class="tl"><div class="tl-head"><h2 class="sec">Timeline</h2><div class="legend"><span><i class="seg wait"></i>Waiting to open</span><span><i class="seg work"></i>Requirements window</span><span><i class="seg hold"></i>Keep open</span><span><b class="mk paid"></b>Paid</span><span><b class="mk closed"></b>Closed</span><span><b class="mk again"></b>Eligible again</span><span><i class="seg plan"></i>Suggested</span></div></div>
+ <div class="tl-scroll"><div class="tl-grid"><div class="tl-row tl-axis"><div class="tl-name"></div><div class="tl-track">${months.join("")}<em class="today-l" style="left:${x(T0)}%">Today</em></div></div>${body}${ghost?`<div class="tl-sep">Suggested next applications</div>${ghost}`:""}</div></div>${!STAGE&&P.length>6?`<p style="margin:10px 0 0"><button class="btn ghost" data-act="planall">${PLANALL?"Show fewer suggestions":`Show all ${P.length} suggestions`}</button></p>`:""}</section>`}
+function planHtml(P){const p=S.profile,sum=P.reduce((s,x)=>s+x.o.amt,0);
+ return `<section class="panel planbox"><div><h3>Your plan for the next 6 months</h3><p class="note">${P.length?`Following the suggested schedule could earn about <b>${money(sum)}</b> from ${P.length} new account${P.length===1?"":"s"}, without needing more than ${money(+p.ddCap||0)} a month in paychecks.`:`No new applications fit right now. Raise the paycheck amount you can send to new banks, or check back as accounts finish their requirements.`}</p></div>
+ <label>New accounts per month<select data-act="prof" data-k="pace">${[1,2,3,4,5].map(n=>`<option${(+p.pace||3)===n?" selected":""}>${n}</option>`).join("")}</select></label></section>`}
+function viewMine(){const L=all().filter(o=>S.track[o.id]?.status),P=S.profile.state?plan():[];
+ if(!L.length&&!P.length)return `<div class="empty"><b>No accounts yet.</b><br>Choose your state on Find offers to get a suggested plan, or pick a status like "Applied" on any offer and it moves here.</div>`;
+ const strip=L.length?`<div class="stages" role="group" aria-label="Filter by stage">${STAGES.map(([k,l])=>{const c=L.filter(o=>S.track[o.id].status===k).length;return `<button class="stage${c?"":" zero"}" data-act="stage" data-k="${k}" aria-pressed="${STAGE===k}"><b>${c}</b><span>${l}</span></button>`}).join("")}</div>`:"";
  const bar=askReset?`<div class="panel bar" role="alertdialog" aria-label="Confirm reset"><span style="flex:1 1 260px"><b>Reset all ${L.length} accounts?</b> Every account goes back to Find offers and its dates, progress and notes are cleared. Your profile and any offers you added stay.</span><button class="btn danger" data-act="reset-do">Reset everything</button><button class="btn ghost" data-act="reset-no">Cancel</button></div>`
-  :`<div class="bar" style="justify-content:space-between"><span class="note">${STAGE?`Showing ${STAGES.find(s=>s[0]===STAGE)[1].toLowerCase()} only. <a href="#mine" data-act="stage" data-k="">Show all</a>`:`To send one offer back to Find offers, set it to "Not started."`}</span><button class="btn ghost" data-act="reset-ask">Reset all accounts</button></div>`;
- return strip+bar+[["open","Open: working on requirements"],["applied","Applied: waiting to hear back"],["planned","Planning to apply"],["earned","Paid: waiting until it's safe to close"],["closed","Closed"],["denied","Denied"]].filter(([k])=>!STAGE||STAGE===k).map(([k,h])=>{const g=L.filter(o=>S.track[o.id].status===k);return g.length?`<h2 class="sec">${h} <span class="note">(${g.length})</span></h2><div class="grid">${g.map(mineCard).join("")}</div>`:""}).join("")}
+  :L.length?`<div class="bar" style="justify-content:space-between;margin-top:28px"><span class="note">${STAGE?`Showing ${STAGES.find(s=>s[0]===STAGE)[1].toLowerCase()} only. <a href="#mine" data-act="stage" data-k="">Show all</a>`:`To send one offer back to Find offers, set it to "Not started."`}</span><button class="btn ghost" data-act="reset-ask">Reset all accounts</button></div>`:"";
+ const cards=[["open","Open: working on requirements"],["applied","Applied: waiting to hear back"],["planned","Planning to apply"],["earned","Paid: waiting until it's safe to close"],["closed","Closed"],["denied","Denied"]].filter(([k])=>!STAGE||STAGE===k).map(([k,h])=>{const g=L.filter(o=>S.track[o.id].status===k);return g.length?`<h2 class="sec">${h} <span class="note">(${g.length})</span></h2><div class="grid">${g.map(mineCard).join("")}</div>`:""}).join("");
+ return strip+movesHtml(moves(P))+planHtml(P)+timeline(P)+bar+cards}
 function events(){const E=[];for(const o of all()){const t=S.track[o.id];if(!t||!t.status)continue;
  if(t.status==="open"&&t.opened)E.push({d:addD(t.opened,o.win||90),what:"Requirements deadline",o});
  if(["open","earned"].includes(t.status)&&t.opened)E.push({d:addD(t.opened,o.keep||DEF_KEEP),what:"Safe to close",o});
- if(["earned","closed"].includes(t.status)){const re=reElig(o);if(re&&re.date)E.push({d:re.date,what:"Can churn again",o})}}
+ if(["earned","closed"].includes(t.status)){const re=reElig(o);if(re&&re.date)E.push({d:re.date,what:"Can churn again",o})}
+ if(t.status==="planned"&&t.planOn)E.push({d:t.planOn,what:"Planned application",o})}
  return E.sort((a,b)=>a.d.localeCompare(b.d))}
 function viewCal(){const E=events();if(!E.length)return `<div class="empty"><b>No dates yet.</b><br>Add the day you opened an account in My accounts, and its deadline, safe-to-close date and next-eligible date show up here.</div>`;
- const what={"Requirements deadline":"Finish the requirements","Safe to close":"Safe to close","Can churn again":"Eligible for the bonus again"};let m="",out="";
+ const what={"Requirements deadline":"Finish the requirements","Safe to close":"Safe to close","Can churn again":"Eligible for the bonus again","Planned application":"Apply (your plan)"};let m="",out="";
  for(const e of E){const d=D(e.d),mo=d.toLocaleDateString("en-US",{month:"long",year:"numeric"});if(mo!==m){out+=`<h2 class="month">${mo}</h2>`;m=mo}
   const late=e.d<today()&&e.what!=="Can churn again",n=days(e.d);
   out+=`<div class="ev${late?" late":""}"><time datetime="${e.d}"><b>${d.getDate()}</b><small>${d.toLocaleDateString("en-US",{weekday:"short"})}</small></time><div><div class="what">${what[e.what]||esc(e.what)}</div><div class="who">${esc(e.o.b)}, ${esc(e.o.a)}</div></div><span class="when">${n===0?"Today":n>0?`In ${n} day${n===1?"":"s"}`:`${-n} day${n===-1?"":"s"} ago`}</span></div>`}
@@ -708,6 +844,8 @@ function render(){if(busy)return;stats();const V={find:viewFind,mine:viewMine,ca
  if(fk){const s=$("#view "+fk);if(s){s.focus();if(s.type==="search"||s.type==="text")s.setSelectionRange(s.value.length,s.value.length)}}
  if(!RM.matches)document.querySelectorAll("[data-card]").forEach(c=>{const b=before[c.dataset.card];if(!b)return;const n=c.getBoundingClientRect(),dx=b.left-n.left,dy=b.top-n.top;
   if(dx||dy)c.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:"none"}],{duration:420,easing:"cubic-bezier(.2,.8,.2,1)"})});
+ const tls=$("#view .tl-scroll"),tl=tls&&tls.querySelector(".tl-axis .today-l");
+ if(tls&&tl&&tls.scrollWidth>tls.clientWidth&&!tls.dataset.done){tls.scrollLeft=Math.max(0,tl.offsetLeft+tl.parentElement.offsetLeft-tls.clientWidth*.35)}
  const n=all().filter(o=>S.track[o.id]?.status).length;
  document.querySelectorAll("#tabs button").forEach(b=>{b.setAttribute("aria-selected",b.dataset.tab===tab);if(b.dataset.tab==="mine")b.innerHTML="My accounts"+(n?`<span class="badge">${n}</span>`:"")})}
 // ---- exit animations: each status leaves the list its own way ----
@@ -804,6 +942,9 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data
  if(a==="rvcancel"){RV=null;CHMSG="";render()}
  if(a==="chexpaste"){const t=$("#chexpaste")?.value||"";if(t.trim()){finishRead(parseReport(t),"pasted text");render()}}
  if(a==="chexfill"){S.profile.chexAuto=false;S.profile.chex=fillChex();S.profile.u=now();save();render();toast("Estimated from accounts in your tracker — adjust to match your report")}
+ if(a==="planall"){PLANALL=!PLANALL;render();return}
+ if(a==="nm"){const id=b.dataset.id,k=b.dataset.k;if(k==="plan")planOffer(id,b.dataset.d||today());else setStatus(id,k,document.querySelector(`#view .card[data-card="${CSS.escape(id)}"] select[data-act="status"]`));return}
+ if(a==="jump"){const c=document.querySelector(`#view .card[data-card="${CSS.escape(b.dataset.id)}"]`);if(c){c.scrollIntoView({behavior:RM.matches?"auto":"smooth",block:"center"});c.animate([{boxShadow:"0 0 0 3px var(--gold)"},{boxShadow:"0 0 0 0 transparent"}],{duration:1400})}return}
  if(a==="stage"){e.preventDefault();STAGE=STAGE===b.dataset.k?"":b.dataset.k;render();return}
  if(a==="reset-ask"||a==="reset-no"){askReset=a==="reset-ask";render();if(askReset)$('[data-act="reset-no"]')?.focus()}
  if(a==="reset-do"){const u=now();undoSnap=JSON.parse(JSON.stringify(S.track));let n=0;
