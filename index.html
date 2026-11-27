@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Checking Bonus Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@600;700;800&family=Red+Hat+Text:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a precise money tool — calm, exact, no fluff.
+   IDEA: a bank ledger / statement that tells you what to do next.
+   PICTURE: the working tracker itself; header band of four live totals.
+   COLOUR and TYPE: oxford blue band, white panels, magenta for dollars; Red Hat Display + Text.
+   LAYOUT: band with totals, tabs, then the live list; stacks to one column under 600px. */
+:root{color-scheme:light dark;
+--bg:light-dark(#eef1f7,#070f26);--panel:light-dark(#fff,#0f1a3a);--ink:light-dark(#0b1433,#e8ecf7);
+--mute:light-dark(#56607a,#9aa5c4);--line:light-dark(#dde2ee,#22305a);--band:#0b1f4b;--mag:#e0115f;
+--magsoft:light-dark(#fde7ef,#3a0f24);--ok:light-dark(#0d7a4f,#4fd39a);--oksoft:light-dark(#e3f5ec,#0f3326);
+--warn:light-dark(#9a5b00,#f2b84b);--warnsoft:light-dark(#fdf1dc,#3a2a0c);--chip:light-dark(#f1f3f9,#18244a)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Red Hat Text",system-ui,sans-serif;overflow-x:clip}
+h1,h2,h3,.fig-n{font-family:"Red Hat Display",system-ui,sans-serif}
+.wrap{max-width:1240px;margin:0 auto;padding:0 max(4vw,16px)}
+header{background:var(--band);color:#fff;padding:28px 0 0}
+h1{font-size:clamp(30px,4vw,44px);line-height:1.05;margin:0 0 4px;font-weight:800;text-wrap:balance}
+.sub{color:#b8c3e6;margin:0 0 22px;max-width:70ch}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:#22356e;border-radius:12px 12px 0 0;overflow:hidden}
+.stat{background:#102a62;padding:16px 18px}
+.stat b{display:block;font:700 clamp(24px,3vw,34px)/1.1 "Red Hat Display",system-ui,sans-serif;white-space:nowrap}
+.stat span{color:#b8c3e6;font-size:14px}
+.stat.hot b{color:#ff5c96}
+.navband{background:var(--band);position:sticky;top:0;z-index:50;box-shadow:0 4px 14px #0b1f4b33}
+nav{display:flex;gap:4px;flex-wrap:wrap;padding:10px 0;background:var(--band)}
+nav button{background:none;border:0;color:#c9d2ee;font:600 16px "Red Hat Text",system-ui,sans-serif;padding:10px 16px;border-radius:8px;min-height:44px;cursor:pointer}
+nav button[aria-selected=true]{background:#fff;color:var(--band)}
+nav button:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--mag);outline-offset:2px}
+main{padding:24px 0 60px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.prof{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;align-items:end;margin-bottom:16px}
+label{display:block;font-size:14px;color:var(--mute);font-weight:500}
+input,select,textarea{font:16px "Red Hat Text",system-ui,sans-serif;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-height:44px;margin-top:4px}
+textarea{min-height:70px;resize:vertical}
+.check{display:flex;gap:8px;align-items:center;min-height:44px;color:var(--ink);font-size:15px}
+.check input{width:20px;min-height:20px;margin:0;accent-color:var(--mag)}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 14px}
+.bar input[type=search]{flex:1 1 220px;margin:0}.bar select{flex:0 1 200px;margin:0}
+.count{color:var(--mute);font-size:14px;margin:0 0 12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
+.card.inel{opacity:.62}
+.top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.top h3{margin:0;font-size:19px;line-height:1.2}
+.top small{display:block;color:var(--mute);font-size:14px}
+.amt{font:800 28px/1 "Red Hat Display",system-ui,sans-serif;color:var(--mag);white-space:nowrap}
+.req{margin:0;font-size:15px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--chip);border-radius:6px;padding:3px 8px;font-size:13px;white-space:nowrap}
+.chip.k{background:var(--magsoft)}.chip.g{background:var(--oksoft);color:var(--ok)}.chip.w{background:var(--warnsoft);color:var(--warn)}
+.why{font-size:14px;color:var(--warn);margin:0}
+.why.ok{color:var(--ok)}
+.foot{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:auto;flex-wrap:wrap}
+.foot select{width:auto;flex:1 1 160px;margin:0}
+.foot a{color:var(--mute);font-size:14px}
+.btn{background:var(--band);color:#fff;border:0;border-radius:8px;font:600 15px "Red Hat Text",system-ui,sans-serif;padding:10px 16px;min-height:44px;cursor:pointer}
+.btn.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
+:root[data-theme=dark] .btn,.btn{}
+.sec{font-size:22px;margin:26px 0 10px}
+.sec:first-child{margin-top:0}
+.dates{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.prog{height:8px;background:var(--chip);border-radius:4px;overflow:hidden;margin-top:6px}
+.prog i{display:block;height:100%;background:var(--mag)}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ev{display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:center}
+.ev time{font:700 16px "Red Hat Display",system-ui,sans-serif;white-space:nowrap}
+.ev .late{color:var(--mag)}
+.empty{color:var(--mute);padding:30px;text-align:center;border:1px dashed var(--line);border-radius:12px}
+.note{font-size:14px;color:var(--mute)}
+.note a{color:inherit}
+.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--band);color:#fff;padding:8px 8px 8px 16px;border-radius:10px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none;display:flex;gap:12px;align-items:center;z-index:100;box-shadow:0 8px 24px #0004}
+.toast.on{opacity:1;pointer-events:auto}
+.toast button{background:#fff;color:var(--band);border:0;border-radius:6px;font:600 14px "Red Hat Text",system-ui,sans-serif;padding:8px 12px;min-height:36px;cursor:pointer}
+.toast:not(:has(button)){padding:10px 16px}
+.card{position:relative}
+.card.flying{z-index:60;pointer-events:none;box-shadow:0 18px 40px #0b1f4b55}
+.stamp{position:absolute;top:50%;left:50%;font:800 30px/1 "Red Hat Display",system-ui,sans-serif;padding:8px 18px;border:4px solid currentColor;border-radius:10px;background:color-mix(in srgb,var(--panel) 85%,transparent);opacity:0;pointer-events:none;white-space:nowrap;z-index:2}
+.st-planned{color:#3b4fd8}.st-applied{color:#0b7fc7}.st-open{color:var(--ok)}.st-earned{color:var(--mag)}.st-closed{color:var(--mute)}.st-denied{color:#d0103a}
+.coin{position:fixed;z-index:70;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3,#0000 45%),#f2b84b;border:2px solid #b07a12;color:#7a5208;font:800 14px/22px "Red Hat Display",system-ui,sans-serif;text-align:center;pointer-events:none}
+.coin.m{background:radial-gradient(circle at 35% 30%,#fff5,#0000 45%),var(--mag);border-color:#8a0a3a;color:#fff}
+.mint{position:absolute;inset:0;z-index:3;pointer-events:none;border-radius:12px;background:color-mix(in srgb,var(--panel) 55%,transparent)}
+.printer{position:absolute;top:-16px;left:6%;width:88%;height:30px;border-radius:9px;background:linear-gradient(#2a3a66,#111b38);box-shadow:0 6px 14px #0006,inset 0 1px 0 #ffffff30;z-index:2}
+.printer::after{content:"";position:absolute;bottom:7px;left:7%;right:7%;height:4px;border-radius:2px;background:#000}
+.printer i{position:absolute;top:7px;right:12px;width:7px;height:7px;border-radius:50%;background:#4fd39a;box-shadow:0 0 8px #4fd39a}
+.printer b{position:absolute;top:4px;left:12px;color:#9fb0dd;font:700 11px "Red Hat Text",system-ui,sans-serif}
+.tray{position:absolute;left:0;right:0;top:10px;bottom:0;overflow:hidden;border-radius:0 0 12px 12px}
+.bill{position:absolute;left:50%;width:min(78%,240px);height:44px;margin-left:calc(min(78%,240px)/-2);border-radius:4px;background:linear-gradient(135deg,#d6efd9,#9fd3a9 55%,#c4e8ca);border:2px solid #2f6b3d;box-shadow:inset 0 0 0 4px #ffffff55,inset 0 0 0 6px #2f6b3d33,0 3px 6px #0003;color:#1f4d2b;font:800 17px/40px "Red Hat Display",system-ui,sans-serif;display:flex;justify-content:space-between;padding:0 12px}
+.bill::before{content:"$";position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px;border-radius:50%;border:2px solid #2f6b3d;background:#e8f6ea;text-align:center;font-size:18px;line-height:26px}
+.bill.fall{position:fixed;z-index:72;top:0;margin:0;width:130px;left:0;pointer-events:none}
+.paid{position:fixed;left:50%;top:42%;z-index:80;width:0;height:0;pointer-events:none}
+.paid .rays{position:absolute;left:-230px;top:-230px;width:460px;height:460px;border-radius:50%;background:repeating-conic-gradient(#f2b84b66 0 9deg,#0000 9deg 18deg);-webkit-mask:radial-gradient(#000 25%,#0000 68%);mask:radial-gradient(#000 25%,#0000 68%)}
+.paid .big{position:absolute;left:-80px;top:-80px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff6c9,#f7cf5c 45%,#e0a52a);border:7px solid #a8720e;color:#6e4806;font:800 112px/146px "Red Hat Display",system-ui,sans-serif;text-align:center;box-shadow:0 0 0 14px #f2b84b40,0 24px 60px #0007,inset 0 -8px 0 #0002}
+.paid .msg{position:absolute;left:-200px;width:400px;top:96px;text-align:center;color:#fff;font:800 40px/1.05 "Red Hat Display",system-ui,sans-serif;text-shadow:0 3px 0 #0b1f4b,0 10px 30px #000a}
+.paid .msg span{display:block;color:#ff4d8d;font-size:52px;margin-top:4px}
+.badge{display:inline-block;min-width:22px;padding:0 6px;margin-left:6px;border-radius:11px;background:var(--mag);color:#fff;font-size:13px;line-height:22px;text-align:center}
+.more{border-top:1px solid var(--line);padding-top:8px}
+.more summary{cursor:pointer;font-weight:600;font-size:15px;min-height:36px;display:flex;align-items:center;gap:6px;list-style:none}
+.more summary::-webkit-details-marker{display:none}
+.more summary::before{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+.more[open] summary::before{transform:rotate(45deg)}
+.more h4{font:700 15px "Red Hat Display",system-ui,sans-serif;margin:12px 0 6px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:2px 10px;font-size:14px;margin:6px 0}
+.mrow em{font-style:normal;text-align:right;white-space:nowrap;color:var(--mute)}
+.mrow .prog{grid-column:1/-1;margin:0;height:6px}
+.mrow .prog i.bad{background:var(--warn)}
+.why2{margin:4px 0;padding-left:18px;font-size:14px}
+.chip.o5{background:var(--oksoft);color:var(--ok);font-weight:600}.chip.o3{background:var(--warnsoft);color:var(--warn);font-weight:600}.chip.o1{background:var(--magsoft);color:var(--mag);font-weight:600}
+.chexrow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) auto;gap:10px;align-items:end}
+.tbl{width:100%;border-collapse:collapse;font-size:15px}
+.tbl th{text-align:left;font-size:13px;color:var(--mute);font-weight:600;padding:8px;border-bottom:2px solid var(--line)}
+.tbl td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl td.n{text-align:right;white-space:nowrap}
+.scroll{overflow-x:auto}
+@media(max-width:700px){.chexrow{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){nav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}nav button{flex:none}
+.tbl{font-size:14px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8.5em;text-align:start}.stack td.n{text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:8em;margin-inline-start:-8.5em;color:var(--mute);font-size:13px}}
+@media(prefers-reduced-motion:reduce){.toast{transition:none}}
+@media(max-width:800px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.dates{grid-template-columns:repeat(2,minmax(0,1fr))}.cols{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:600px){.ev{grid-template-columns:minmax(0,1fr)}.ev{gap:2px}}
+</style>
+</head>
+<body>
+<header>
+ <div class="wrap">
+  <h1>Checking bonus tracker</h1>
+  <p class="sub">Every current checking bonus, filtered to the ones you qualify for, with requirements, safe-to-close dates and when you can churn each one again.</p>
+  <p class="sub" id="fresh" style="margin-top:-14px;font-size:14px">Loading the latest offers…</p>
+  <div class="stats" id="stats"></div>
+ </div>
+</header>
+<div class="navband"><div class="wrap"><nav role="tablist" id="tabs">
+  <button role="tab" data-tab="find" aria-selected="true">Find offers</button>
+  <button role="tab" data-tab="mine" aria-selected="false">My accounts</button>
+  <button role="tab" data-tab="cal" aria-selected="false">Upcoming dates</button>
+  <button role="tab" data-tab="guide" aria-selected="false">DD &amp; ChexSystems</button>
+  <button role="tab" data-tab="data" aria-selected="false">Add offer &amp; data</button>
+ </nav></div></div>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+<main class="wrap" id="view"></main>
+<div class="toast" id="toast" role="status"></div>
+<script>
+{
+// t: bank|cu|fin|brok · dd: total DD for max tier · mindd: lowest-tier DD · mdd: monthly DD · dep: deposit/new money · win: days to complete
+// tx: debit tx · keep: days to keep open (null = not stated) · cd: months between bonuses (null = not stated, -1 = once per lifetime) · g: churn group
+const OFFERS=[
+{id:"chase-total",b:"Chase",a:"Total Checking",t:"bank",amt:400,dd:1000,win:90,keep:180,cd:24,g:"chase",st:"ALL",pull:"soft",fee:"$15, waivable",exp:"2027-01-27",req:"$1,000+ in direct deposits within 90 days of coupon enrollment.",note:"One Chase checking bonus per 2 years. Bonus can be taken back if closed within 6 months.",url:"https://www.chase.com"},
+{id:"chase-900",b:"Chase",a:"$900 checking offer (may be targeted)",t:"bank",amt:900,dd:10000,win:90,keep:180,cd:24,g:"chase",st:"ALL",pull:"soft",fee:"$15, waivable",exp:"2027-01-27",req:"$10,000 in total direct deposits within 90 days.",note:"Counts against the same 2-year Chase rule as Total Checking — pick one.",url:"https://www.chase.com"},
+{id:"chase-cpc",b:"Chase",a:"Private Client Checking",t:"bank",amt:3000,dep:150000,win:45,keep:180,cd:12,g:"chase-cpc",st:"ALL",pull:"soft",fee:"$35, waivable",req:"Tiered: bring large new money and hold it ~90 days (top tier needs the largest balance).",note:"Tier thresholds change — verify the current coupon before moving money.",url:"https://www.chase.com"},
+{id:"bofa",b:"Bank of America",a:"Advantage Banking",t:"bank",amt:500,dd:10000,mindd:2000,win:90,keep:90,cd:12,st:"ALL",pull:"soft",fee:"$12, waivable",req:"Tiered: $2,000–$10,000+ in direct deposits within 90 days; $10k gets the max.",note:"Up to $250 debit card funding.",url:"https://www.bankofamerica.com"},
+{id:"usb",b:"U.S. Bank",a:"Smartly Checking",t:"bank",amt:450,dd:8000,mindd:2000,win:90,keep:null,cd:12,st:"ALL",pull:"varies",fee:"$12, waivable",req:"Tiered: $2,000–$8,000 in direct deposits within 90 days; $8k gets $450.",note:"Anti-churn window cut to 12 months (was 24). Some reports of hard pulls.",url:"https://www.usbank.com"},
+{id:"wf",b:"Wells Fargo",a:"Everyday Checking",t:"bank",amt:500,dd:1000,win:90,keep:null,cd:12,st:"ALL",pull:"soft",fee:"$10–15, waivable",req:"$1,000 in direct deposits within 90 days; open online.",note:"Sources disagree on whether this is still live — check the offer page first.",url:"https://www.wellsfargo.com"},
+{id:"citi",b:"Citi",a:"Regular Checking",t:"bank",amt:325,dd:3000,win:90,keep:null,cd:12,st:"ALL",pull:"varies",fee:"$15, waivable",req:"Qualifying direct deposits within 90 days ($475 tier in select markets).",note:"Citi can hard pull. $475 tier reported for NY, CT, MD, VA, DC, CA, NV, NJ and parts of FL/IL.",url:"https://www.citi.com"},
+{id:"cap1",b:"Capital One",a:"360 Checking",t:"bank",amt:300,dd:1000,win:75,keep:null,cd:36,st:"ALL",pull:"soft",fee:"None",req:"2 direct deposits of $500+ within 75 days.",note:"Some sources show $250 — amount depends on the promo page you use.",url:"https://www.capitalone.com"},
+{id:"sofi",b:"SoFi",a:"Checking & Savings",t:"fin",amt:400,dd:5000,mindd:1000,win:25,keep:null,cd:null,st:"ALL",pull:"soft",fee:"None",req:"Tiered: higher direct deposit totals unlock up to $400.",note:"Can stack with a cashback portal bonus.",url:"https://www.sofi.com"},
+{id:"schwab",b:"Charles Schwab",a:"Investor Checking + brokerage",t:"brok",amt:1000,dep:25000,win:90,keep:null,cd:null,st:"ALL",pull:"soft",fee:"None",req:"Transfer $25k / $50k / $100k → $250 / $500 / $1,000. Needs a Schwab brokerage account.",note:"No direct deposit needed.",url:"https://www.schwab.com"},
+{id:"chime",b:"Chime",a:"Checking",t:"fin",amt:100,dd:200,win:45,keep:null,cd:null,cd2:-1,st:"ALL",pull:"soft",fee:"None",req:"$200+ direct deposit within 45 days.",note:"Portal versions have paid much more.",url:"https://www.chime.com"},
+{id:"current",b:"Current",a:"Account",t:"fin",amt:100,dd:1500,win:35,keep:null,cd:null,st:"ALL",pull:"soft",fee:"None",req:"$1,500 direct deposit within 35 days.",url:"https://current.com"},
+{id:"varo",b:"Varo",a:"Bank Account (referral)",t:"fin",amt:150,dd:1,win:45,keep:null,cd:null,st:"ALL",pull:"soft",fee:"None",req:"Qualifying direct deposit within 45 days via a referral link.",url:"https://www.varomoney.com"},
+{id:"percapita",b:"Percapita",a:"Checking",t:"fin",amt:300,win:365,spend:300,keep:null,cd:null,st:"ALL",pull:"soft",fee:"None",req:"No direct deposit. Spend $300+/month on debit; paid $25/month for 12 months.",url:"https://percapita.com"},
+{id:"psecu",b:"PSECU",a:"Checking",t:"cu",amt:300,dd:1000,win:100,keep:null,cd:null,st:"ALL",pull:"soft",fee:"None",req:"2 direct deposits of $500+ within 100 days.",note:"PA credit union, but anyone can join via a $20 association membership.",url:"https://www.psecu.com"},
+{id:"nfcu",b:"Navy Federal CU",a:"New member checking",t:"cu",amt:400,dd:500,win:120,keep:null,cd:9,mil:1,st:"ALL",pull:"varies",fee:"None",req:"$500 direct deposit within 120 days.",note:"Military, veterans, DoD and their families only.",url:"https://www.navyfederal.org"},
+{id:"connexus",b:"Connexus CU",a:"Checking",t:"cu",amt:300,dd:500,win:90,keep:null,cd:null,st:"ALL",pull:"soft",fee:"None",req:"Direct deposit or $500 ACH credit.",url:"https://www.connexuscu.org"},
+{id:"affinity",b:"Affinity FCU",a:"Checking (referral)",t:"cu",amt:100,dd:500,win:60,keep:null,cd:12,st:"ALL",pull:"soft",fee:"None",req:"$500 direct deposit within 60 days.",note:"Up to $1,000 card funding.",url:"https://www.affinityfcu.com"},
+{id:"figfcu",b:"Farmers Insurance FCU",a:"Checking",t:"cu",amt:250,mdd:5000,dd:15000,win:90,keep:null,cd:null,st:"ALL",pull:"soft",fee:"None",req:"$5,000+ direct deposit each month for 3 straight months.",url:"https://www.figfcu.org"},
+{id:"xmoney",b:"X Money",a:"Account",t:"fin",amt:300,dd:3000,win:90,keep:null,cd:null,st:"ALL",pull:"soft",fee:"None",req:"$3,000 in direct deposits.",note:"Newer product — confirm availability.",url:"https://x.com"},
+{id:"fourleaf",b:"Four Leaf FCU",a:"Checking",t:"cu",amt:550,dd:500,win:90,keep:null,cd:null,st:["NY"],pull:"soft",fee:"None",req:"$500+ direct deposit within 90 days.",note:"Very ChexSystems/inquiry sensitive. Offer ends in December.",url:"https://www.fourleaffcu.org"},
+{id:"hunt",b:"Huntington",a:"Perks / 25 Checking",t:"bank",amt:600,dd:5000,mindd:500,win:90,keep:90,cd:24,st:["OH","MI","IN","KY","PA","WV","IL","WI","MN","CO"],pull:"soft",fee:"$0–10, waivable",req:"Tiered: lower tier with a $500 direct deposit; $600 top tier needs larger deposits.",url:"https://www.huntington.com"},
+{id:"bmo",b:"BMO",a:"Smart Advantage Checking",t:"bank",amt:600,mdd:1000,dd:3000,win:210,keep:null,cd:12,st:["AZ","CA","CO","FL","IA","IL","IN","MN","NM","NV","OR","UT","WA","WI"],pull:"soft",fee:"None",req:"$1,000+ in direct deposits per month during the qualifying period.",note:"No longer nationwide.",url:"https://www.bmo.com"},
+{id:"assoc",b:"Associated Bank",a:"Checking",t:"bank",amt:600,dd:5000,mindd:500,win:90,keep:null,cd:24,st:["WI","IL","MN"],pull:"soft",fee:"None",exp:"2026-11-30",req:"Tiered: $500+ direct deposit within 90 days; more deposits unlock $600.",url:"https://www.associatedbank.com"},
+{id:"truist",b:"Truist",a:"One Checking",t:"bank",amt:500,dd:2000,win:120,tx:20,keep:null,cd:null,st:["AL","AR","DC","FL","GA","IN","KY","MD","MS","NJ","NC","OH","PA","SC","TN","TX","VA","WV"],pull:"soft",fee:"$12, waivable",req:"$2,000 in direct deposits + 20 debit transactions within 120 days.",url:"https://www.truist.com"},
+{id:"key",b:"KeyBank",a:"Smart / Select Checking",t:"bank",amt:500,dd:5000,mindd:2000,win:90,keep:120,cd:12,st:["AK","CO","CT","ID","IN","ME","MA","MI","NY","OH","OR","PA","UT","VT","WA"],pull:"soft",fee:"$0–25, waivable",exp:"2026-12-11",req:"Smart: $2,000 DD in 90 days → $300. Select: $5,000 DD → $500.",note:"Must stay open 120 days.",url:"https://www.key.com"},
+{id:"53",b:"Fifth Third",a:"Momentum Checking",t:"bank",amt:300,dd:500,win:90,keep:null,cd:13,st:["OH","MI","IN","KY","IL","FL","GA","NC","SC","TN","WV"],pull:"soft",fee:"None",req:"$500 in direct deposits within 90 days.",url:"https://www.53.com"},
+{id:"regions",b:"Regions",a:"LifeGreen Checking",t:"bank",amt:400,dd:1000,win:90,keep:null,cd:12,st:["AL","AR","FL","GA","IL","IN","IA","KY","LA","MS","MO","NC","SC","TN","TX"],pull:"soft",fee:"$8, waivable",req:"$1,000+ in direct deposits within 90 days.",url:"https://www.regions.com"},
+{id:"pnc",b:"PNC",a:"Virtual Wallet Performance Select",t:"bank",amt:400,dd:5000,mindd:2000,win:60,keep:null,cd:24,st:["AL","AZ","CA","CO","DE","DC","FL","GA","IL","IN","KS","KY","MD","MI","MO","NJ","NM","NY","NC","OH","PA","SC","TN","TX","VA","WV","WI"],pull:"soft",fee:"$25, waivable",req:"$5,000 in direct deposits within 60 days ($200 tier with ~$2,000 on lower accounts).",note:"Amount varies by location. Card funding codes as cash advance.",url:"https://www.pnc.com"},
+{id:"td",b:"TD Bank",a:"Complete / Beyond Checking",t:"bank",amt:300,dd:2500,win:60,keep:null,cd:null,st:["CT","DE","DC","FL","ME","MD","MA","NH","NJ","NY","NC","PA","RI","SC","VT","VA"],pull:"soft",fee:"$15–25, waivable",exp:"2026-11-30",req:"Tiered: $2,500 in direct deposits within 60 days; extra bonus with a savings account.",url:"https://www.td.com/us"},
+{id:"citizens",b:"Citizens",a:"First Citizens checking",t:"bank",amt:1200,mdd:500,win:365,keep:null,cd:-1,st:["CT","DE","MA","MI","NH","NJ","NY","OH","PA","RI","VT"],pull:"soft",fee:"Varies",req:"Earn monthly over 12 qualification periods by meeting each month's activity requirements.",note:"New customers only, first Citizens checking account. Check the offer terms for the monthly requirement.",url:"https://www.citizensbank.com"},
+{id:"hancock",b:"Hancock Whitney",a:"Checking",t:"bank",amt:300,dd:2000,win:90,keep:null,cd:24,st:["AL","FL","LA","MS","TX"],pull:"soft",fee:"$10, waivable",req:"$2,000 in direct deposits within 90 days.",url:"https://www.hancockwhitney.com"},
+{id:"webster",b:"Webster Bank",a:"Checking",t:"bank",amt:300,dd:500,win:90,keep:null,cd:null,st:["CT","MA","NY","NJ","PA","RI"],pull:"soft",fee:"$11.95, waivable",req:"$500 in direct deposits within 90 days.",url:"https://www.websterbank.com"},
+{id:"oldnat",b:"Old National",a:"Checking",t:"bank",amt:600,dd:12000,win:120,keep:null,cd:null,st:["IN","IL","KY","MI","MN","WI"],pull:"soft",fee:"None",req:"Tiered: up to $12,000 in direct deposits within 120 days for $600.",url:"https://www.oldnational.com"},
+{id:"firstmerch",b:"First Merchants",a:"Checking",t:"bank",amt:400,dd:500,win:90,keep:null,cd:12,st:["IN","OH","MI","IL"],pull:"soft",fee:"$10, waivable",req:"Tiered: $500 in direct deposits within 90 days.",url:"https://www.firstmerchants.com"},
+{id:"wintrust",b:"Wintrust",a:"Checking",t:"bank",amt:500,dd:1000,win:90,keep:null,cd:null,st:["IL","WI"],pull:"soft",fee:"None",req:"Tiered: direct deposits within 90 days.",url:"https://www.wintrust.com"},
+{id:"byline",b:"Byline Bank",a:"Checking",t:"bank",amt:450,dd:1000,win:120,keep:null,cd:null,st:["IL","WI"],pull:"soft",fee:"$5",req:"$1,000 in direct deposits within 120 days.",url:"https://www.bylinebank.com"},
+{id:"nwbank",b:"Northwest Bank",a:"Checking",t:"bank",amt:400,dd:1000,win:90,keep:null,cd:12,st:["PA","NY","OH","IN"],pull:"soft",fee:"None",req:"$1,000 in direct deposits within 90 days.",url:"https://www.northwest.bank"},
+{id:"fulton",b:"Fulton Bank",a:"Simply Checking",t:"bank",amt:400,dd:1000,win:90,keep:null,cd:null,st:["PA","NJ","MD","DE","VA"],pull:"soft",fee:"None",req:"2 direct deposits of $500+ within 90 days.",url:"https://www.fultonbank.com"},
+{id:"dollar",b:"Dollar Bank",a:"Checking",t:"bank",amt:400,dd:2500,win:90,keep:null,cd:null,st:["PA","OH"],pull:"soft",fee:"$5",req:"$2,500 in direct deposits within 90 days.",url:"https://dollar.bank"},
+{id:"bokf",b:"BOK Financial",a:"Checking",t:"bank",amt:750,dd:8000,win:90,keep:null,cd:6,st:["AR","AZ","CO","KS","MO","NM"],pull:"soft",fee:"$25, waivable",req:"Tiered: $8,000 in direct deposits within 90 days for $750.",url:"https://www.bokfinancial.com"},
+{id:"bot",b:"Bank of Texas",a:"Checking",t:"bank",amt:650,dd:8000,win:90,keep:null,cd:null,st:["TX"],pull:"soft",fee:"$25, waivable",req:"$8,000 in direct deposits within 90 days.",url:"https://www.bankoftexas.com"},
+{id:"bok",b:"Bank of Oklahoma",a:"Checking",t:"bank",amt:300,win:90,tx:10,keep:null,cd:6,st:["OK"],pull:"soft",fee:"Varies",req:"No direct deposit — 10 debit card transactions.",url:"https://www.bankofoklahoma.com"},
+{id:"equity",b:"Equity Bank",a:"Simply Free Checking",t:"bank",amt:400,dd:1000,win:45,tx:1,keep:null,cd:6,st:["KS","MO","OK","AR"],pull:"soft",fee:"None",exp:"2026-12-31",req:"$1,000 direct deposit within 45 days + 1 transaction (checking + savings combo).",url:"https://www.equitybank.com"},
+{id:"seacoast",b:"Seacoast Bank",a:"Premium Checking",t:"bank",amt:400,dd:1000,win:90,keep:null,cd:12,st:["FL"],pull:"soft",fee:"None",req:"$1,000 in direct deposits within 90 days.",url:"https://www.seacoastbank.com"},
+{id:"columbia",b:"Columbia Bank",a:"Checking",t:"bank",amt:500,dd:2000,win:60,keep:null,cd:null,st:["NJ"],pull:"soft",fee:"$10",req:"$2,000 in direct deposits within 60 days.",url:"https://www.columbiabankonline.com"},
+{id:"hawaii",b:"Bank of Hawaii",a:"Checking",t:"bank",amt:300,dd:3500,win:60,keep:null,cd:null,st:["HI"],pull:"soft",fee:"$15, waivable",req:"Tiered: $3,500 in direct deposits within 60 days.",url:"https://www.boh.com"},
+{id:"fhb",b:"First Hawaiian Bank",a:"Priority Banking",t:"bank",amt:350,dd:500,win:60,keep:null,cd:null,st:["HI"],pull:"soft",fee:"$15, waivable",req:"$500 direct deposit within 60 days.",url:"https://www.fhb.com"},
+{id:"penncomm",b:"Penn Community Bank",a:"Checking",t:"bank",amt:500,win:60,keep:null,cd:12,st:["PA"],pull:"soft",fee:"Varies",req:"No direct deposit required — see terms for the activity requirement.",url:"https://www.penncommunitybank.com"},
+{id:"fcb",b:"First Commonwealth",a:"Checking",t:"bank",amt:400,win:90,tx:10,keep:null,cd:12,st:["PA","OH"],pull:"soft",fee:"$5",req:"No direct deposit — 10 debit transactions.",url:"https://www.fcbanking.com"},
+{id:"republic",b:"Republic Bank & Trust",a:"Checking",t:"bank",amt:400,dd:600,win:90,tx:10,keep:null,cd:null,st:["KY","IN","OH","TN","FL"],pull:"soft",fee:"Varies",req:"3 direct deposits within 90 days + 10 transactions.",url:"https://www.republicbank.com"},
+{id:"bankers",b:"Bankers Trust",a:"Checking",t:"bank",amt:400,dd:400,win:60,tx:25,keep:null,cd:6,st:["IA"],pull:"soft",fee:"Varies",req:"2 direct deposits of $200+ within 60 days + 25 transactions.",url:"https://www.bankerstrust.com"},
+{id:"verve",b:"Verve, a Credit Union",a:"Checking",t:"cu",amt:600,dd:1000,win:90,keep:null,cd:18,st:["WI","MN","IL"],pull:"soft",fee:"$15, waivable",exp:"2026-12-31",req:"$1,000 in direct deposits (3 payments).",url:"https://www.verveacu.com"},
+{id:"hvfcu",b:"Hudson Valley FCU",a:"Checking",t:"cu",amt:500,win:90,keep:null,cd:null,st:["NY"],pull:"soft",fee:"None",req:"Direct deposit not required — see terms for the activity requirement.",note:"Up to $10,000 card funding.",url:"https://www.hvfcu.org"},
+{id:"stanford",b:"Stanford FCU",a:"Checking",t:"cu",amt:500,dd:500,win:90,keep:null,cd:null,st:["CA"],pull:"soft",fee:"None",req:"$500+ direct deposit within 90 days; stackable extras up to ~$625.",note:"No longer requires in-branch opening.",url:"https://www.sfcu.org"},
+{id:"wsecu",b:"WSECU",a:"Checking",t:"cu",amt:500,mdd:1000,dd:3000,win:90,tx:25,keep:null,cd:null,st:["WA"],pull:"soft",fee:"None",req:"$1,000+/month in direct deposits for 90 days + 25 transactions.",url:"https://www.wsecu.org"},
+{id:"gesa",b:"Gesa CU",a:"Checking",t:"cu",amt:250,dd:400,win:75,keep:null,cd:24,st:["WA"],pull:"soft",fee:"Varies",req:"2 direct deposits within 75 days.",url:"https://www.gesa.com"},
+{id:"peak",b:"Peak CU",a:"High Yield Checking",t:"cu",amt:250,win:90,keep:null,cd:null,st:["WA","OR"],pull:"soft",fee:"None",req:"Direct deposit not required — see terms.",url:"https://www.peakcu.org"},
+{id:"afcu",b:"America First CU",a:"Checking",t:"cu",amt:350,dd:1000,win:60,keep:null,cd:12,st:["UT","NV","AZ","ID"],pull:"soft",fee:"Varies",req:"$1,000 in direct deposits within 60 days.",url:"https://www.americafirst.com"},
+{id:"desert",b:"Desert Financial CU",a:"Checking",t:"cu",amt:200,dd:500,win:60,keep:null,cd:12,st:["AZ"],pull:"soft",fee:"None",req:"Direct deposit within 60 days.",url:"https://www.desertfinancial.com"},
+{id:"gaown",b:"Georgia's Own CU",a:"Checking",t:"cu",amt:275,dd:3000,win:60,tx:30,keep:null,cd:3,st:["GA"],pull:"soft",fee:"$5.95, waivable",req:"$3,000 in direct deposits within 60 days + 30 transactions.",url:"https://www.georgiasown.org"},
+{id:"credhuman",b:"Credit Human",a:"Checking",t:"cu",amt:300,dd:1000,win:90,tx:10,keep:null,cd:null,st:["TX"],pull:"soft",fee:"None",req:"2 direct deposits of $500+ within 90 days + 10 transactions.",url:"https://www.credithuman.com"},
+{id:"midfl",b:"MidFlorida CU",a:"Checking",t:"cu",amt:400,dd:500,win:75,tx:40,keep:null,cd:null,st:["FL"],pull:"soft",fee:"None",req:"Tiered: direct deposit within 75 days + 40 transactions.",url:"https://www.midflorida.com"},
+{id:"grow",b:"Grow Financial FCU",a:"Checking",t:"cu",amt:300,dd:500,win:90,keep:null,cd:12,st:["FL","SC"],pull:"soft",fee:"None",req:"Direct deposit within 90 days.",url:"https://www.growfinancial.org"},
+{id:"campus",b:"Campus FCU",a:"Checking",t:"cu",amt:600,dd:1000,win:90,keep:null,cd:null,st:["LA"],pull:"soft",fee:"$10",req:"$1,000 in direct deposits within 90 days (2 deposits).",url:"https://www.campusfederal.org"},
+{id:"purdue",b:"Purdue FCU",a:"Checking",t:"cu",amt:400,dd:500,win:90,tx:10,keep:null,cd:null,st:["IN"],pull:"soft",fee:"None",req:"2 direct deposits within 90 days + 10 transactions.",url:"https://www.purduefed.com"}
+];
+const STATES="AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split(" ");
+// ---- Direct deposit data points: [method, worked, conclusive reports] (0 total = reported working, no count) ----
+// Sources: The Bonus Stack per-bank pages (compiled from Doctor of Credit + r/churning), Nov 2026
+const BS="https://thebonusstack.com/learn/what-counts-as-direct-deposit-";
+const DDX={
+chase:{lvl:"strict",ov:"82% of 505 reports counted",upd:"Nov 17, 2026",url:BS+"chase",m:[["Employer payroll",194,195],["Fidelity CMA (EFT to someone else)",15,15],["Chase Business account",10,10],["Treasury Direct",8,8],["Cash App balance withdrawal",5,5],["Fidelity CMA (standard push)",11,18],["Schwab checking push",2,10],["Wells Fargo push",2,12]],fail:"Zelle, ACH pulls from another bank, Chase-to-Chase transfers. Ally, eBay and Venmo results are mixed."},
+bofa:{lvl:"very flexible",ov:"98% of 633 reports counted",upd:"Nov 19, 2026",url:BS+"bank-of-america",m:[["Employer payroll",110,110],["Fidelity CMA",98,99],["Ally",57,58],["Chase push",52,54],["SoFi",46,48],["Capital One",28,28],["Schwab (checking or brokerage)",26,26],["Chase Business",17,17],["U.S. Bank",12,12]],fail:"Chase Real-Time Transfer (posts as other income)."},
+usb:{lvl:"very flexible",ov:"98% of 655 reports counted",upd:"Nov 21, 2026",url:BS+"us-bank",m:[["Employer payroll",94,94],["Chase push",75,76],["Ally",62,62],["Fidelity CMA",62,62],["Capital One",39,39],["SoFi",36,37],["Schwab",18,18],["Wells Fargo",15,15],["PayPal",3,3]],fail:"Wise and Citi pushes. Needs 2+ separate deposits."},
+wf:{lvl:"flexible",ov:"700+ reports",upd:"mid-2026",url:BS+"wells-fargo",m:[["Chase push",0,0],["Fidelity CMA",0,0],["SoFi",0,0],["Capital One",0,0]],fail:"Terms say payroll only, but these pushes have counted consistently into mid-2026."},
+citi:{lvl:"very flexible",ov:"Community record described as nearly spotless",upd:"2026",url:BS+"bank-bonuses",m:[["Fidelity CMA",35,35],["ACH push from other banks",0,0],["Zelle",0,0],["Venmo / PayPal sent as ACH",0,0]],fail:"Citi is the rare bank where Zelle has counted."},
+cap1:{lvl:"very flexible",ov:"95% of 294 reports counted",upd:"Nov 10, 2026",url:BS+"capital-one",m:[["Employer payroll",67,68],["Chase push",43,45],["Fidelity CMA",31,32],["Schwab Brokerage",19,19],["Venmo, PayPal, Cash App",17,17],["Ally",10,10],["Discover",9,9],["SoFi",10,13]],fail:"KeyBank, Interactive Brokers and S&T Bank pushes. Needs 2 separate $500+ deposits."},
+sofi:{lvl:"very flexible",ov:"Most flexible bank in the dataset",upd:"2026",url:BS+"bank-bonuses",m:[["ACH push from most banks",0,0]],fail:"P2P transfers and ACH pulls are excluded in SoFi's terms."},
+hunt:{lvl:"flexible",ov:"27 of 29 methods work (246 reports)",upd:"Nov 2026",url:BS+"huntington",m:[["Employer payroll",0,0],["Ally",0,0],["Fidelity CMA",0,0],["Capital One",8,8],["Chase push",0,0],["Schwab Brokerage",0,0],["SoFi",0,0],["Discover",0,0]],fail:"BMO push failed. Zelle is excluded in Huntington's terms."},
+truist:{lvl:"moderate",ov:"451 reports; 25 methods work, 6 fail",upd:"Nov 20, 2026",url:BS+"truist",m:[["Employer payroll",71,71],["Chase push",45,49],["Schwab Brokerage",11,12],["Schwab",9,10],["PayPal",6,6],["Current",6,6],["Fidelity CMA",18,23],["Capital One",3,9],["Ally",1,5],["SoFi",1,5],["PNC",0,3]],fail:"Real Time Payments (RTP) excluded in terms; SoFi, Ally, PNC and Capital One pushes usually fail."},
+key:{lvl:"very flexible",ov:"Terms count any electronic ACH deposit",upd:"Oct 16, 2026",url:BS+"keybank",m:[["Employer payroll",41,41],["Fidelity CMA",23,24],["Chase push",19,20],["SoFi",6,6],["Wells Fargo",5,6],["Capital One",10,12],["Chase Business",3,3],["Discover",2,2]],fail:"Transfers from inside the KeyBank app don't count."},
+regions:{lvl:"very flexible",ov:"98% of 91 reports counted",upd:"Oct 15, 2026",url:BS+"regions",m:[["Employer payroll",20,20],["Fidelity CMA",11,11],["Chase push",11,11],["Discover",2,2],["Capital One",4,5],["Bank of America",0,1]],fail:"One Bank of America push failed (Aug 2026)."},
+pnc:{lvl:"moderate",ov:"874 reports",upd:"Nov 14, 2026",url:BS+"pnc",m:[["Employer payroll",98,99],["Schwab Brokerage (MoneyLink)",23,23],["Chase Business payroll",10,10],["Fidelity CMA",59,61],["Wells Fargo",29,31],["Fidelity Brokerage",11,12],["Capital One",31,35],["Chase push",79,90],["PayPal",12,14],["Ally",17,24]],fail:"Anything posting as \"P2P ACH Web Payment\" (Ally most often), Chase pushes labeled EXT TRNSFR in 2026, Zelle, ACH pulls."},
+"53":{lvl:"flexible",ov:"Pushes often pay within days",upd:"2026",url:BS+"bank-bonuses",m:[["Chase Business",7,7],["Wells Fargo push",0,0],["Capital One",0,0],["Ally",0,0],["Fidelity CMA",0,0]],fail:"Terms ask for payroll, but these pushes have counted."},
+td:{lvl:"strict",ov:"Has rejected pushes that looked like DD",upd:"2026",url:BS+"bank-bonuses",m:[["Employer payroll ($250+ each)",0,0]],fail:"Some ACH pushes rejected even when they looked like direct deposits."},
+psecu:{lvl:"strict",ov:"Strict terms; pays ~130 days after joining",upd:"2026",url:BS+"bank-bonuses",m:[["Employer payroll",0,0]],fail:"Non-payroll methods are risky here."},
+bmo:{lvl:"flexible",ov:"Recent activity",upd:"2026",url:"https://thebonusstack.com/datapoints",m:[["Employer payroll",84,84],["Fidelity CMA (EFT to someone else)",14,14]],fail:"Few non-payroll reports so far."}
+};
+const DDK=o=>({"chase-total":"chase","chase-900":"chase","chase-cpc":"chase"}[o.id]||o.id);
+const DD_ALL=[["Employer payroll",98.7,2237],["Fidelity Cash Management Account",93.0,728],["Chase personal push",90.3,713],["Wells Fargo push",85.5,173],["Schwab brokerage push",83.0,229]];
+// ---- ChexSystems: p = pulls Chex (yes / no / mixed), s = inquiry sensitivity (low / mixed / high / ?), d = [result, count, months, wording] ----
+// Source: Doctor of Credit reader data points (sensitive / not-sensitive list and do / don't-pull list)
+const CHX={
+chase:{p:"no",s:"low",d:[["ok",20,24,"20+ new accounts"]]},
+bofa:{p:"no",s:"?",d:[]},wf:{p:"mixed",s:"low",d:[]},n_wf:"Reportedly denies only for negative ChexSystems balances",
+usb:{p:"mixed",s:"low",d:[["ok",15,24,"15+"]]},
+citi:{p:"yes",s:"high",d:[["deny",9,4,"9–10 sign-ups in 4 months"],["ok",23,7,"23 in 7 months"]],n:"Has approved applicants whose Chex was frozen."},
+cap1:{p:"mixed",s:"?",d:[]},sofi:{p:"no",s:"?",d:[]},chime:{p:"no",s:"?",d:[]},current:{p:"no",s:"low",d:[["ok",60,24,"60+"]]},varo:{p:"no",s:"?",d:[]},
+schwab:{p:"mixed",s:"high",d:[["deny",8,12,"8 in 12 months"]]},
+psecu:{p:"yes",s:"high",d:[],n:"Denied with \"lots\" in 24 months."},
+nfcu:{p:"no",s:"?",d:[]},
+affinity:{p:"yes",s:"low",d:[["ok",100,24,"100 in 24 months"]]},
+figfcu:{p:"yes",s:"high",d:[["deny",2,1,"2 in 1 month"],["deny",41,24,"41 in 24 months"]]},
+fourleaf:{p:"yes",s:"high",d:[["ok",14,12,"14 in 12 months"],["deny",5,12,"5 in 12 months"]],n:"Mostly cares about inquiries in the last month."},
+hunt:{p:"mixed",s:"?",d:[]},
+bmo:{p:"yes",s:"low",d:[["ok",6,3,"6 in 3 months"],["ok",15,24,"15+"]]},
+assoc:{p:"mixed",s:"?",d:[]},
+truist:{p:"yes",s:"low",d:[["ok",20,24,"20+ (as BB&T)"]]},
+key:{p:"yes",s:"high",d:[["deny",13,12,"13"],["deny",2,1,"1–2 per month"],["deny",30,24,"30 in 24 months"]]},
+"53":{p:"yes",s:"high",d:[["deny",10,6,"10 in 6 months"],["deny",50,8,"50+ in 8 months"]]},
+regions:{p:"no",s:"?",d:[]},
+pnc:{p:"mixed",s:"high",d:[["deny",30,36,"30+ in 3 years"]]},
+td:{p:"no",s:"low",d:[["ok",15,24,"15+"]]},
+citizens:{p:"mixed",s:"mixed",d:[["deny",5,6,"5 in 180 days"],["ok",13,24,"13+"]]},
+hancock:{p:"no",s:"?",d:[]},
+webster:{p:"yes",s:"low",d:[["ok",15,24,"15+"]]},
+oldnat:{p:"yes",s:"mixed",d:[["ok",20,24,"20+"],["deny",10,12,"10 in 12 months"]]},
+firstmerch:{p:"yes",s:"?",d:[]},
+wintrust:{p:"?",s:"high",d:[["deny",3,4,"3 in 4 months"],["deny",6,12,"6 in 12 months"]]},
+byline:{p:"yes",s:"high",d:[["deny",3,12,"more than 2 inquiries"]]},
+nwbank:{p:"yes",s:"?",d:[]},
+fulton:{p:"yes",s:"low",d:[["ok",50,12,"50+ in 12 months"],["ok",100,24,"100+ in 24 months"]]},
+dollar:{p:"yes",s:"?",d:[]},equity:{p:"yes",s:"?",d:[]},seacoast:{p:"yes",s:"?",d:[]},
+columbia:{p:"yes",s:"mixed",d:[["ok",25,10,"25+ in 10 months"],["deny",10,12,"10 in 12 months (one report)"]]},
+hawaii:{p:"yes",s:"?",d:[]},penncomm:{p:"yes",s:"?",d:[]},fcb:{p:"?",s:"?",d:[]},
+republic:{p:"yes",s:"low",d:[["ok",40,24,"40+"]]},
+verve:{p:"?",s:"low",d:[["ok",73,24,"73 in 24 months"]]},
+hvfcu:{p:"yes",s:"?",d:[]},
+stanford:{p:"yes",s:"high",d:[],n:"Denied with \"lots\" in 24 months."},
+wsecu:{p:"?",s:"mixed",d:[["deny",3,1,"3 in 1 month (in branch)"],["deny",7,2,"7 in 2 months"],["deny",9,3,"9 in 3 months"],["ok",5,12,"5 in 12 months"]]},
+credhuman:{p:"yes",s:"high",d:[["deny",8,12,"8 in 12 months"]]},
+grow:{p:"yes",s:"?",d:[]}
+};
+CHX.wf.n=CHX.n_wf;
+const CHK=o=>DDK(o);
+const DOC_SENS="https://www.doctorofcredit.com/banks-credit-unions-chexsystems-inquiry-sensitive/",DOC_PULL="https://www.doctorofcredit.com/banks-credit-unions-dodont-pull-chexsystems/",DOC_DD="https://www.doctorofcredit.com/knowledge-base/list-methods-banks-count-direct-deposits/";
+const STATUS=[["","Not started"],["planned","Planning to apply"],["applied","Applied"],["open","Open — working on it"],["earned","Bonus received"],["closed","Closed"],["denied","Denied"]];
+const DEF_KEEP=180,DEF_CD=12;
+let S={profile:{state:"",ddCap:3000,cash:5000,mil:false},track:{},custom:[],v:1};
+let META=null,FIRST_RUN="";const STALE_DAYS=7;
+let tab="find",F={q:"",type:"",sort:"amt",inel:false,nodd:false,chexok:false,ddok:false},db=null,ref=null,saveT=null;
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money=n=>"$"+Math.round(+n||0).toLocaleString("en-US");
+const today=()=>new Date().toISOString().slice(0,10);
+const D=s=>s?new Date(s+"T12:00:00"):null;
+const iso=d=>d.toISOString().slice(0,10);
+const addD=(s,n)=>{const d=D(s);d.setDate(d.getDate()+n);return iso(d)};
+const addM=(s,n)=>{const d=D(s);d.setMonth(d.getMonth()+n);return iso(d)};
+const fmt=s=>s?D(s).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"—";
+const days=s=>Math.round((D(s)-D(today()))/864e5);
+const all=()=>OFFERS.concat(S.custom.map(c=>({...c,custom:1})));
+const T=id=>S.track[id]||(S.track[id]={});
+const grp=o=>o.g||o.b.toLowerCase();
+const mreq=o=>o.mdd||((o.mindd||o.dd)?Math.ceil((o.mindd||o.dd)/Math.max(1,(o.win||90)/30)):0);
+function toast(m,go,undo){const t=$("#toast");t.innerHTML=esc(m)+(go?` <button data-tab="${go}">View</button>`:"")+(undo?` <button data-act="undo">Undo</button>`:"");t.classList.add("on");clearTimeout(t._x);t._x=setTimeout(()=>t.classList.remove("on"),undo?6000:go?3200:1800)}
+let askReset=false,undoSnap=null;
+function used(){let u=0;for(const o of all()){const t=S.track[o.id];if(t&&t.status==="open"&&(!t.opened||days(addD(t.opened,o.win||90))>=0))u+=mreq(o)}return u}
+function reElig(o){ // latest bonus/open in same churn group
+ let last=null;for(const x of all()){if(grp(x)!==grp(o))continue;const t=S.track[x.id];if(!t)continue;const base=t.bonusDate||(["open","earned","closed"].includes(t.status)?t.opened:null);if(base&&(!last||base>last.base))last={base,x}}
+ if(!last)return null;const cd=last.x.cd??DEF_CD;if(cd===-1)return{life:1};return{date:addM(last.base,cd),assumed:last.x.cd==null}}
+function elig(o){
+ const r=[],p=S.profile,st=S.track[o.id]?.status;
+ if(o.exp&&o.exp<today())r.push("Offer expired "+fmt(o.exp));
+ if(Array.isArray(o.st)&&p.state&&!o.st.includes(p.state))r.push("Only in "+o.st.join(", "));
+ if(o.seen&&META&&-days(o.seen)>STALE_DAYS)r.push("Not listed on bonus sites since "+fmt(o.seen)+" — may have ended");
+ if(o.mil&&!p.mil)r.push("Military / family membership only");
+ if(o.dep&&o.dep>p.cash)r.push("Needs "+money(o.dep)+" in new money");
+ const m=mreq(o),free=p.ddCap-used()+(st==="open"?m:0);
+ if(m&&m>free)r.push("Needs ~"+money(m)+"/mo direct deposit; you have "+money(Math.max(0,free))+"/mo free");
+ if(!["open","applied"].includes(st)){const re=reElig(o);if(re&&re.life)r.push("One-time bonus — already done");else if(re&&re.date>today())r.push("Re-eligible "+fmt(re.date)+(re.assumed?" (assumed 12-mo rule)":""))}
+ return r}
+// every change is stamped (u) so a late-arriving cloud copy can never overwrite newer local edits
+const now=()=>Date.now();
+function merge(a,b){ // newest wins per entry
+ const out={...a,track:{},custom:[],gone:[...new Set([...(a.gone||[]),...(b.gone||[])])]};
+ out.profile=((b.profile?.u||0)>(a.profile?.u||0))?b.profile:a.profile;
+ for(const id of new Set([...Object.keys(a.track||{}),...Object.keys(b.track||{})])){const x=a.track?.[id],y=b.track?.[id];out.track[id]=!x?y:!y?x:((y.u||0)>(x.u||0)?y:x)}
+ const cm={};for(const c of [...(a.custom||[]),...(b.custom||[])])cm[c.id]=c;out.custom=Object.values(cm).filter(c=>!out.gone.includes(c.id));
+ return out}
+let writing=false,again=false;
+async function push(){if(!ref)return;if(writing){again=true;return}writing=true;
+ try{await ref.set(JSON.parse(JSON.stringify(S)))}catch(e){}
+ writing=false;if(again){again=false;push()}}
+// ---- approval odds from your ChexSystems inquiry counts ----
+const WIN=[["c1",1],["c3",3],["c6",6],["c12",12],["c24",24]];
+function chexPts(){const c=S.profile.chex||{};if(WIN.every(([k])=>c[k]==null||c[k]===""))return null;
+ let last=0;const pts=[[0,0]];for(const [k,m] of WIN){const v=c[k]==null||c[k]===""?last:Math.max(last,+c[k]);pts.push([m,v]);last=v}return pts}
+function chexAt(m){const P=chexPts();if(!P)return null;if(m>=24)return Math.round(P[5][1]*(m/24));
+ for(let i=1;i<P.length;i++)if(m<=P[i][0]){const [a,va]=P[i-1],[b,vb]=P[i];return Math.round(va+(vb-va)*(m-a)/(b-a))}return P[5][1]}
+function odds(o){const P=chexPts();if(!P)return null;const x=CHX[CHK(o)],why=[],c12=chexAt(12),c1=chexAt(1);
+ if(!x){let p=c12<=5?75:c12<=12?60:45;if(c1>=3)p-=10;why.push("No ChexSystems reports for this bank yet — estimate uses your 12-month count only.");return{p,why}}
+ if(x.p==="no")return{p:95,why:["Doctor of Credit readers report this bank doesn't pull ChexSystems, so your Chex inquiries shouldn't affect approval."]};
+ let p={low:88,mixed:66,high:55,"?":72}[x.s],plus=0,hit=0;
+ for(const [r,n,m,w] of x.d){const u=chexAt(m);
+  if(r==="deny"&&u>=n){p-=u>=1.5*n?40:30;hit++;why.push(`A reader was denied with ${w} — you have about ${u} in that window.`)}
+  else if(r==="deny")why.push(`A reader was denied with ${w} — you're under that (about ${u}).`);
+  else if(r==="ok"&&u<=n){plus+=8;why.push(`A reader was approved with ${w} — you're at or under that (about ${u}).`)}
+  else if(r==="ok")why.push(`A reader was approved with ${w} — you're above that (about ${u}).`)}
+ p+=Math.min(plus,16);
+ if(x.s==="high"&&!hit&&!x.d.some(d=>d[0]==="deny")){if(c12>5){p-=20;why.push("Reported as inquiry-sensitive and you have more than 5 inquiries in 12 months.")}else why.push("Reported as inquiry-sensitive; your recent count is low.")}
+ if(x.s==="low"&&!x.d.length)why.push("Reported as not inquiry-sensitive.");
+ if(x.p==="mixed")why.push("Reports are mixed on whether this bank pulls ChexSystems at all.");
+ if(x.n)why.push(x.n);
+ return{p:Math.max(5,Math.min(97,p)),why}}
+const oddsLbl=p=>p>=80?["Likely","o5"]:p>=60?["Good","o5"]:p>=40?["Fair","o3"]:p>=20?["Risky","o1"]:["Unlikely","o1"];
+const chexLbl=o=>{const x=CHX[CHK(o)];if(!x)return["Chex: no data",""];if(x.p==="no")return["Doesn't pull Chex","g"];return{low:["Chex: not sensitive","g"],mixed:["Chex: mixed reports","w"],high:["Chex sensitive","w"],"?":[x.p==="yes"?"Pulls Chex · sensitivity unknown":"Chex: limited data",""]}[x.s]};
+const ddLbl=o=>{const d=DDX[DDK(o)];if(!d)return null;const alt=d.m.filter(([n,w,t])=>!/payroll/i.test(n)&&(t===0||w/t>=.8)).length;return d.lvl==="strict"?["DD: strict — payroll safest","w"]:[`DD: ${d.lvl} · ${alt} workaround${alt===1?"":"s"}`,"g"]};
+function ddBlock(o){const d=DDX[DDK(o)];if(!d)return `<h4>Direct deposit workarounds</h4><p class="note">No community data for this bank in the app yet. Check <a href="${DOC_DD}" target="_blank" rel="noopener">Doctor of Credit's direct deposit list</a>.</p>`;
+ const rows=[...d.m].sort((a,b)=>(b[2]?b[1]/b[2]:.999)-(a[2]?a[1]/a[2]:.999)||b[2]-a[2]).map(([n,w,t])=>{const r=t?w/t:null;
+  return `<div class="mrow"><span>${esc(n)}</span><em>${t?Math.round(r*100)+"% · "+w+"/"+t:"reported working"}</em><div class="prog"><i class="${r!=null&&r<.75?"bad":""}" style="width:${t?Math.max(4,r*100):100}%;${t?"":"opacity:.35"}"></i></div></div>`}).join("");
+ return `<h4>Direct deposit workarounds · ${esc(d.lvl)}</h4><p class="note">${esc(d.ov)} · updated ${esc(d.upd)}</p>${rows}<p class="note"><b>Doesn't work / watch out:</b> ${esc(d.fail)} <a href="${esc(d.url)}" target="_blank" rel="noopener">Data points ↗</a></p>`}
+function chexBlock(o){const x=CHX[CHK(o)],od=odds(o);
+ let h=`<h4>ChexSystems</h4>`;
+ if(!x)h+=`<p class="note">No reader reports for this bank yet.</p>`;
+ else h+=`<p class="note">${x.p==="no"?"Doesn't pull ChexSystems":x.p==="yes"?"Pulls ChexSystems":x.p==="mixed"?"Mixed reports on pulling ChexSystems":"Unknown whether it pulls ChexSystems"} · ${({low:"not inquiry-sensitive",mixed:"mixed sensitivity reports",high:"inquiry-sensitive","?":"sensitivity not reported"})[x.s]}</p>`;
+ if(od){const [l]=oddsLbl(od.p);h+=`<p><b>Your approval odds: ${l} (~${od.p}%)</b></p><ul class="why2">${od.why.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>`}
+ else h+=`<p class="note">Enter your ChexSystems inquiry counts above to see your odds.</p>`;
+ return h+`<p class="note"><a href="${DOC_SENS}" target="_blank" rel="noopener">Sensitivity reports ↗</a> · <a href="${DOC_PULL}" target="_blank" rel="noopener">Who pulls Chex ↗</a></p>`}
+function fillChex(){const c={},now_=today();for(const [k,m] of WIN)c[k]=0;
+ for(const o of all()){const t=S.track[o.id];if(!t)continue;const d=t.applied||t.opened;if(!d)continue;const x=CHX[CHK(o)];if(x&&x.p==="no")continue;
+  const age=(D(now_)-D(d))/(864e5*30.44);for(const [k,m] of WIN)if(age<=m)c[k]++}
+ return c}
+function save(){try{localStorage.setItem("cbt",JSON.stringify(S))}catch(e){}
+ clearTimeout(saveT);saveT=setTimeout(push,600)}
+function stats(){
+ const list=all();let pot=0,n=0,prog=0,earn=0;const y=today().slice(0,4);
+ for(const o of list){const t=S.track[o.id]||{};if(!t.status&&!elig(o).length&&S.profile.state){pot+=o.amt;n++}
+  if(["applied","open"].includes(t.status))prog+=o.amt;
+  if(t.bonusDate&&t.bonusDate.startsWith(y))earn+=+(t.got??o.amt)}
+ const ev=events().filter(e=>e.d>=today())[0];
+ $("#stats").innerHTML=`<div class="stat hot"><b>${money(pot)}</b><span>${n} offers you qualify for</span></div>
+ <div class="stat"><b>${money(prog)}</b><span>Applied or in progress</span></div>
+ <div class="stat"><b>${money(earn)}</b><span>Bonuses received in ${y}</span></div>
+ <div class="stat"><b>${ev?(ev.d.slice(0,4)===y?fmt(ev.d).replace(/, \d{4}/,""):fmt(ev.d)):"—"}</b><span>${ev?esc(ev.what+" · "+ev.o.b):"No upcoming dates"}</span></div>`}
+function chips(o){const c=[];
+ if(o.mdd)c.push(`<span class="chip k">${money(o.mdd)}/mo DD</span>`);else if(o.dd>1)c.push(`<span class="chip k">${o.mindd?money(o.mindd)+"–":""}${money(o.dd)} DD</span>`);else if(o.dd)c.push(`<span class="chip k">Any DD</span>`);else if(!o.dep)c.push(`<span class="chip g">No DD</span>`);
+ if(o.dep)c.push(`<span class="chip k">${money(o.dep)}+ deposit</span>`);
+ if(o.win)c.push(`<span class="chip">${o.win} days</span>`);
+ if(o.tx)c.push(`<span class="chip">${o.tx} debit tx</span>`);
+ if(o.spend)c.push(`<span class="chip">${money(o.spend)}/mo spend</span>`);
+ c.push(`<span class="chip">Keep open ${o.keep?o.keep+" days":"? (plan "+DEF_KEEP+")"}</span>`);
+ c.push(`<span class="chip ${o.cd==null?"w":""}">Churn: ${o.cd===-1?"once ever":o.cd!=null?"every "+o.cd+" mo":"not stated"}</span>`);
+ c.push(`<span class="chip">Fee: ${esc(o.fee||"—")}</span>`,`<span class="chip">${!o.pull||o.pull==="?"?"Credit pull unknown":esc(o.pull)+" pull"}</span>`);
+ if(o.exp)c.push(`<span class="chip w">Ends ${fmt(o.exp)}</span>`);
+ c.push(`<span class="chip ${o.st==="?"?"w":""}">${o.st==="ALL"?"Nationwide":o.st==="?"?"States: check offer":esc(o.st.join(" "))}</span>`);
+ if(o.first&&-days(o.first)<=3&&META&&-days(META.generated.slice(0,10))<=1&&o.first>FIRST_RUN)c.unshift(`<span class="chip k">New</span>`);
+ if(o.changed&&-days(o.changed)<=7&&o.prevAmt)c.unshift(`<span class="chip k">Was ${money(o.prevAmt)}</span>`);
+ if(o.auto)c.push(`<span class="chip w">Auto-collected — verify details</span>`);
+ else if(META&&!o.seen&&!o.custom)c.push(`<span class="chip w">Not on the bonus roundups — verify it's live</span>`);
+ if(o.seen&&META){const a=-days(o.seen);if(a>1&&a<=STALE_DAYS)c.push(`<span class="chip w">Last listed ${fmt(o.seen)}</span>`)}
+ return c.join("")}
+const OPEN=new Set();
+function intel(o){const od=odds(o),cl=chexLbl(o),dl=ddLbl(o);
+ const c=[];if(od){const [l,k]=oddsLbl(od.p);c.push(`<span class="chip ${k}">Approval odds: ${l} · ~${od.p}%</span>`)}
+ c.push(`<span class="chip ${cl[1]}">${cl[0]}</span>`);if(dl)c.push(`<span class="chip ${dl[1]}">${dl[0]}</span>`);
+ return `<div class="chips">${c.join("")}</div><details class="more" data-det="${esc(o.id)}"${OPEN.has(o.id)?" open":""}><summary>Direct deposit workarounds &amp; ChexSystems</summary>${ddBlock(o)}${chexBlock(o)}</details>`}
+function selStatus(o){const v=S.track[o.id]?.status||"";return `<select data-act="status" data-id="${esc(o.id)}" aria-label="Status for ${esc(o.b)}">${STATUS.map(([k,l])=>`<option value="${k}"${k===v?" selected":""}>${l}</option>`).join("")}</select>`}
+function card(o){const r=elig(o),t=S.track[o.id]||{};
+ return `<article class="card ${r.length&&!t.status?"inel":""}" data-card="${esc(o.id)}"><div class="top"><div><h3>${esc(o.b)}</h3><small>${esc(o.a)}${o.custom?" · your offer":""}</small></div><div class="amt">${money(o.amt)}</div></div>
+ <p class="req">${esc(o.req||"")}</p><div class="chips">${chips(o)}</div>
+ ${intel(o)}
+ ${o.note?`<p class="note">${esc(o.note)}</p>`:""}
+ ${r.length?`<p class="why">${r.map(esc).join(" · ")}</p>`:S.profile.state?`<p class="why ok">You qualify</p>`:`<p class="why">Pick your state above to check eligibility</p>`}
+ <div class="foot">${selStatus(o)}${/^https:\/\//.test(o.offerUrl||"")?`<a href="${esc(o.offerUrl)}" target="_blank" rel="noopener">Offer details ↗</a>`:""}${/^https:\/\//.test(o.url||"")?`<a href="${esc(o.url)}" target="_blank" rel="noopener">${o.auto?"Source ↗":"Bank site ↗"}</a>`:""}</div></article>`}
+function profBar(){const p=S.profile;
+ return `<div class="panel prof"><label>Your state<select data-act="prof" data-k="state"><option value="">Choose…</option>${STATES.map(s=>`<option${s===p.state?" selected":""}>${s}</option>`).join("")}</select></label>
+ <label>Direct deposit you can route each month<input type="number" inputmode="numeric" min="0" step="100" data-act="prof" data-k="ddCap" value="${+p.ddCap||0}"></label>
+ <label>Cash you can park for bonuses<input type="number" inputmode="numeric" min="0" step="500" data-act="prof" data-k="cash" value="${+p.cash||0}"></label>
+ <label class="check"><input type="checkbox" data-act="prof" data-k="mil"${p.mil?" checked":""}> Military / Navy Federal eligible</label>
+ <label class="check"><input type="checkbox" data-act="prof" data-k="sound"${p.sound!==false?" checked":""}> Sound effects</label></div>
+ ${chexPanel()}
+ <p class="note">Monthly DD in use by accounts you're still working on: <b>${money(used())}</b> of ${money(p.ddCap)}. Paychecks can be split across several banks at once.</p>`}
+// ---- read a ChexSystems report (PDF text in-browser; scans/photos via Claude) ----
+const PDFJS="https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/legacy/build/";
+let pdfLib=null,RV=null,CHMSG="",CHBUSY=false;
+async function loadPdf(){if(pdfLib)return pdfLib;if(!globalThis.pdfjsWorker)globalThis.pdfjsWorker=await import(PDFJS+"pdf.worker.min.mjs");pdfLib=await import(PDFJS+"pdf.min.mjs");return pdfLib}
+function chMsg(m){CHMSG=m;const e=document.getElementById("chexmsg");if(e)e.textContent=m}
+async function pdfDoc(buf){const lib=await loadPdf();return lib.getDocument({data:buf,isEvalSupported:false}).promise}
+async function pdfText(doc){let out="";for(let i=1;i<=doc.numPages;i++){chMsg(`Reading page ${i} of ${doc.numPages}…`);const tc=await (await doc.getPage(i)).getTextContent();let y=null;
+ for(const it of tc.items){const yy=it.transform?Math.round(it.transform[5]):y;if(y!=null&&Math.abs(yy-y)>2&&!out.endsWith("\n"))out+="\n";out+=it.str+(it.hasEOL?"\n":" ");y=yy}out+="\n"}return out}
+async function pdfImages(doc,max=6){const B=[];for(let i=1;i<=Math.min(doc.numPages,max);i++){chMsg(`Preparing page ${i}…`);const pg=await doc.getPage(i),vp=pg.getViewport({scale:1.6}),c=document.createElement("canvas");c.width=vp.width;c.height=vp.height;
+ await pg.render({canvasContext:c.getContext("2d"),viewport:vp}).promise;B.push(await new Promise(r=>c.toBlob(r,"image/jpeg",.85)))}return B}
+const isoUS=(m,d,y)=>{y=+y;if(y<100)y+=2000;return `${y}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`};
+function parseChunks(seg,vis){const L=[];for(const ch of seg.split(/Inquirer\s*:/i).slice(1)){const name=ch.split(/;|\n|Phone\s*Number|Inquiry\s*Date/i)[0].replace(/\s+/g," ").trim().slice(0,80)||"Unknown inquirer";
+ for(const m of ch.matchAll(/Inquiry\s*Date\s*:?\s*(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{2,4})/gi))L.push({name,date:isoUS(m[1],m[2],m[3]),vis,inc:vis})}return L}
+function parseReport(text){const T=text.replace(/\r/g,""),r={inq:[],score:null,warn:""};
+ const sc=T.match(/Consumer\s*Score[\s\S]{0,60}?Score\s*:?\s*0?(\d{3})\b/i)||T.match(/\bScore\s*:\s*0?(\d{3})\b/i);if(sc)r.score=+sc[1];
+ const st=T.search(/Inquiries\s+Viewed\s+By\s+Others|Inquiries\s+Initiated\s+By\s+Consumer\s+Action|Inquiries\s+on\s+file\s+that\s+other/i);
+ if(st>=0){const rest=T.slice(st+10),en=rest.search(/Inquiries\s+Viewed\s+Only\s+By\s+You|Inquiries\s+Not\s+Initiated\s+By\s+Consumer|Check\s+Order\s+History|Consumer\s+Statement/i);
+  const mine=en>=0?rest.slice(0,en):rest;r.inq=parseChunks(mine,true);if(en>=0)r.inq.push(...parseChunks(rest.slice(en),false))}
+ else if(/Inquirer\s*:/i.test(T)){r.inq=parseChunks(T,true);r.warn="Couldn't find the \"Inquiries Viewed By Others\" heading, so every inquiry is included — untick any only you can see."}
+ return r}
+async function viaClaude(blobs){const sample=window.claude&&await claude.use("sample");if(!sample)throw new Error("Reading scanned pages isn't available here. Use a downloaded PDF, paste the report text, or type the counts.");
+ const lim=await sample.limits?.();if(lim&&!lim.images)throw new Error("Image reading isn't available on this account. Paste the report text or type the counts.");
+ chMsg("Asking Claude to read the pages…");
+ const prompt=`These images are pages of a ChexSystems consumer disclosure report (or a ChexSystems consumer score report). Extract every inquiry. Return ONLY JSON: {"score": number or null, "inquiries": [{"inquirer": "bank name", "date": "MM/DD/YYYY", "section": "others" or "only_you"}]}. Use "others" for "Inquiries Viewed By Others" / "Initiated By Consumer Action" and "only_you" for "Inquiries Viewed Only By You" / "Not Initiated By Consumer Action". One entry per inquiry date. If there are no inquiries, return an empty list. Do not include any other personal information.`;
+ let v;try{v=await sample.json(prompt,{images:blobs,modelTier:"default"})}catch(e){if(e&&e.code==="not_granted")throw new Error("Permission to ask Claude was declined. Paste the text or type the counts instead.");throw e}
+ if(typeof v==="string")v=JSON.parse(v.replace(/^[^{]*/,"").replace(/[^}]*$/,""));
+ const r={score:Number.isFinite(+v?.score)&&v.score?+v.score:null,inq:[],warn:"Read by Claude from page images — double-check the dates below."};
+ for(const q of v?.inquiries||[]){const m=String(q.date||"").match(/(\d{1,2})\D(\d{1,2})\D(\d{2,4})/);if(!m)continue;const vis=q.section!=="only_you";r.inq.push({name:String(q.inquirer||"Unknown inquirer").slice(0,80),date:isoUS(m[1],m[2],m[3]),vis,inc:vis})}
+ return r}
+async function readFile(f){if(CHBUSY)return;CHBUSY=true;RV=null;chMsg("Opening "+f.name+"…");render();
+ try{let r;const isPdf=/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name);
+  if(isPdf){const doc=await pdfDoc(new Uint8Array(await f.arrayBuffer()));const txt=await pdfText(doc);r=parseReport(txt);
+   if(!r.inq.length&&!/Inquir/i.test(txt))r=await viaClaude(await pdfImages(doc))}
+  else if(/^image\//.test(f.type))r=await viaClaude([f]);
+  else if(/^text\//.test(f.type)||/\.txt$/i.test(f.name))r=parseReport(await f.text());
+  else throw new Error("Upload the report as a PDF, a photo, or a text file.");
+  finishRead(r,f.name)}
+ catch(e){chMsg((e&&e.message)||"Couldn't read that file.");}
+ finally{CHBUSY=false;render()}}
+function finishRead(r,name){const seen=new Set();r.inq=r.inq.filter(q=>{const k=q.name.toLowerCase()+q.date+q.vis;if(seen.has(k))return false;seen.add(k);return true}).sort((a,b)=>b.date.localeCompare(a.date));
+ RV={...r,file:name};
+ if(!r.inq.length)chMsg(r.score?`Found your ChexSystems score (${r.score}) but no inquiries. The score report doesn't list them — upload the Consumer Disclosure Report instead.`:"No inquiries found in that document. If you have some, upload the full Consumer Disclosure Report or type the counts.");
+ else chMsg(`Found ${r.inq.filter(q=>q.vis).length} inquiries banks can see${r.inq.some(q=>!q.vis)?` and ${r.inq.filter(q=>!q.vis).length} only you can see`:""}. Review them, then apply.`)}
+const ageMo=d=>(D(today())-D(d))/(864e5*30.44);
+function countsFrom(L){const c={};for(const [k,m] of WIN)c[k]=L.filter(q=>q.inc&&ageMo(q.date)<=m&&ageMo(q.date)>=0).length;return c}
+function reviewHtml(){if(!RV||!RV.inq.length)return "";const c=countsFrom(RV.inq);
+ return `<div class="panel" style="margin-top:12px;background:var(--bg)"><h4 style="margin:0 0 4px">Inquiries found in ${esc(RV.file)}</h4>${RV.warn?`<p class="why">${esc(RV.warn)}</p>`:""}${RV.score?`<p class="note">ChexSystems score on file: <b>${RV.score}</b></p>`:""}
+ <div class="scroll" style="max-height:320px;overflow-y:auto"><table class="tbl"><thead><tr><th>Count it</th><th>Inquirer</th><th>Date</th><th>Seen by banks?</th></tr></thead><tbody>
+ ${RV.inq.map((q,i)=>`<tr><td><input type="checkbox" data-act="rvinc" data-i="${i}" aria-label="Count ${esc(q.name)}"${q.inc?" checked":""} style="width:20px;min-height:20px;margin:0;accent-color:var(--mag)"></td><td>${esc(q.name)}</td><td class="n">${fmt(q.date)}${ageMo(q.date)>24?' <span class="note">(over 2 yrs)</span>':""}</td><td>${q.vis?"Yes":'<span class="note">Only you</span>'}</td></tr>`).join("")}</tbody></table></div>
+ <p style="margin:12px 0 6px"><b>Counts:</b> ${WIN.map(([k,m])=>`${c[k]} in ${m===1?"1 month":m+" months"}`).join(" · ")}</p>
+ <div class="bar" style="margin:0"><button class="btn" data-act="rvapply">Use these counts</button><button class="btn ghost" data-act="rvcancel">Discard</button></div></div>`}
+function chexPanel(){const c=S.profile.chex||{},auto=S.profile.chexAuto&&S.profile.chexInq;
+ return `<div class="panel" style="margin-bottom:16px"><h3 style="margin:0 0 4px;font-size:18px">Your ChexSystems inquiries</h3>
+ <p class="note" style="margin:0 0 10px">Upload your ChexSystems Consumer Disclosure Report and the app counts the inquiries for you, or type the counts yourself (each window includes the shorter ones). Every offer then shows your approval odds, based on Doctor of Credit reader reports. Get your free report at <a href="https://www.chexsystems.com" target="_blank" rel="noopener">chexsystems.com</a>.</p>
+ <div class="chexdrop bar" style="margin:0 0 12px;padding:12px;border:2px dashed var(--line);border-radius:10px">
+  <label class="btn" style="display:inline-flex;align-items:center;${CHBUSY?"opacity:.6;pointer-events:none":""}">${CHBUSY?"Reading…":"Upload report"}<input type="file" data-act="chexfile" accept=".pdf,application/pdf,image/*,.txt,text/plain" style="position:absolute;width:1px;height:1px;opacity:0"></label>
+  <span class="note" style="flex:1 1 240px" id="chexmsg">${esc(CHMSG||(window.claude?"PDF, photo or screenshot — or drop it here. Downloaded PDFs are read in your browser; only inquiry names and dates are saved. Photos and scans are sent to Claude to read.":"Upload the PDF you downloaded from chexsystems.com, or drop it here. It's read in your browser; only inquiry names and dates are saved."))}</span></div>
+ <details class="more" style="margin:0 0 12px"><summary>Paste the report text instead</summary><textarea id="chexpaste" placeholder="Paste the Inquiries Viewed By Others section…"></textarea><p><button class="btn ghost" data-act="chexpaste">Read pasted text</button></p></details>
+ ${reviewHtml()}
+ ${auto?`<p class="note">Counts come from the report you uploaded (${S.profile.chexInq.filter(q=>q.inc).length} inquiries) and update automatically as inquiries age. Editing a number switches to manual.</p>`:""}
+ <div class="chexrow">${[["c1","Last month"],["c3","Last 3 months"],["c6","Last 6 months"],["c12","Last 12 months"],["c24","Last 24 months"]].map(([k,l])=>`<label>${l}<input type="number" inputmode="numeric" min="0" data-act="chex" data-k="${k}" value="${c[k]??""}" placeholder="0"></label>`).join("")}
+ <button class="btn ghost" data-act="chexfill" title="Counts applications in your tracker at banks that pull ChexSystems">Estimate from my tracker</button></div></div>`}
+function viewGuide(){
+ const L=all().filter(o=>!o.custom).filter((o,i,a)=>a.findIndex(x=>DDK(x)===DDK(o))===i).map(o=>({o,od:odds(o),x:CHX[CHK(o)],d:DDX[DDK(o)]}));
+ const rank=v=>v.od?v.od.p:({no:95}[v.x?.p]||({low:85,mixed:65,"?":70,high:50})[v.x?.s]||60);
+ L.sort((a,b)=>rank(b)-rank(a)||b.o.amt-a.o.amt);
+ const best=d=>{if(!d)return"—";const m=d.m.filter(([n,w,t])=>!/payroll/i.test(n)).sort((a,b)=>(b[2]?b[1]/b[2]:.9)-(a[2]?a[1]/a[2]:.9)||b[2]-a[2])[0];return m?esc(m[0])+(m[2]?` <span class="note">${Math.round(m[1]/m[2]*100)}% of ${m[2]}</span>`:` <span class="note">works</span>`):"—"};
+ return `${chexPanel()}
+ <div class="cols"><section class="panel"><h2 class="sec">Which transfers count as a direct deposit</h2>
+ <p class="note">Banks look at how a deposit is coded in the ACH system, not where the money came from. Success rates across all banks combined, from community reports:</p>
+ ${DD_ALL.map(([n,r,c])=>`<div class="mrow"><span>${n}</span><em>${r}% · ${c.toLocaleString()}</em><div class="prog"><i style="width:${r}%"></i></div></div>`).join("")}
+ <h4>Almost never counts</h4><ul class="why2"><li>Zelle (Citi is the exception)</li><li>ACH pulls initiated from the new bank</li><li>Transfers between your own accounts at the same bank</li><li>Venmo, Cash App and PayPal usually post as P2P (results vary by bank)</li></ul>
+ <p class="note">Rates at a specific bank can differ from these overall numbers, so check that bank's breakdown on its offer card, and look for reports from the last 30–60 days before you rely on one. Many banks' terms say only payroll or government benefits count; they can deny or reverse a bonus if a transfer doesn't qualify.</p></section>
+ <section class="panel"><h2 class="sec">How ChexSystems affects approval</h2>
+ <ul class="why2"><li>About 80% of banks and credit unions use ChexSystems; inquiries stay on your report for up to three years.</li><li>Some banks deny people who've opened many accounts recently. Reported cut-offs range from 2–3 accounts in a year to 50+.</li><li>Some large banks (Chase, Bank of America, Regions, TD) use Early Warning Services instead, so your Chex count doesn't matter there.</li><li>Reports for the same bank often conflict, and results can differ online vs. in branch.</li></ul>
+ <p class="note">Strategy many churners use: apply to sensitive banks first while your count is low, and save banks that don't pull Chex (or aren't sensitive) for later.</p></section></div>
+ <h2 class="sec">Every bank, ranked by your approval odds</h2>
+ <div class="panel scroll"><table class="tbl stack"><thead><tr><th>Bank</th><th>Your odds</th><th>ChexSystems</th><th>DD flexibility</th><th>Best non-payroll method</th><th>Top bonus</th></tr></thead><tbody>
+ ${L.map(v=>{const cl=chexLbl(v.o),dl=ddLbl(v.o),ol=v.od?oddsLbl(v.od.p):null;return `<tr><td><b>${esc(v.o.b)}</b></td><td>${ol?`<span class="chip ${ol[1]}">${ol[0]} · ${v.od.p}%</span>`:'<span class="note">enter Chex counts</span>'}</td><td><span class="chip ${cl[1]}">${cl[0]}</span></td><td>${v.d?esc(v.d.lvl):'<span class="note">no data</span>'}</td><td>${best(v.d)}</td><td class="n">${money(Math.max(...all().filter(x=>DDK(x)===DDK(v.o)).map(x=>x.amt)))}</td></tr>`}).join("")}
+ </tbody></table></div>
+ <p class="note">Sources: <a href="${DOC_SENS}" target="_blank" rel="noopener">Doctor of Credit — inquiry-sensitive banks</a> · <a href="${DOC_PULL}" target="_blank" rel="noopener">Doctor of Credit — who pulls ChexSystems</a> · <a href="${DOC_DD}" target="_blank" rel="noopener">Doctor of Credit — what counts as direct deposit</a> · <a href="https://thebonusstack.com/datapoints" target="_blank" rel="noopener">The Bonus Stack data points</a>. Odds are an estimate from crowd-sourced reports, not a guarantee.</p>`}
+function viewFind(){
+ let L=all().filter(o=>!S.track[o.id]?.status).map(o=>({o,r:elig(o)}));
+ const q=F.q.toLowerCase();if(q)L=L.filter(x=>(x.o.b+" "+x.o.a).toLowerCase().includes(q));
+ if(F.type)L=L.filter(x=>x.o.t===F.type);
+ if(F.nodd)L=L.filter(x=>!mreq(x.o));
+ if(F.chexok)L=L.filter(x=>{const c=CHX[CHK(x.o)];return c&&(c.p==="no"||c.s==="low")});
+ if(F.ddok)L=L.filter(x=>{const d=DDX[DDK(x.o)];return !mreq(x.o)||(d&&d.lvl!=="strict")});
+ const hidden=L.filter(x=>x.r.length).length,tracked=all().filter(o=>S.track[o.id]?.status).length;
+ if(!F.inel)L=L.filter(x=>!x.r.length);
+ const so={amt:(a,b)=>b.o.amt-a.o.amt,easy:(a,b)=>mreq(a.o)-mreq(b.o)||b.o.amt-a.o.amt,exp:(a,b)=>(a.o.exp||"9999").localeCompare(b.o.exp||"9999"),bank:(a,b)=>a.o.b.localeCompare(b.o.b),odds:(a,b)=>((odds(b.o)?.p??0)-(odds(a.o)?.p??0))||b.o.amt-a.o.amt};
+ L.sort(so[F.sort]);
+ return profBar()+`<div class="bar"><input type="search" placeholder="Search banks" aria-label="Search banks" data-act="f" data-k="q" value="${esc(F.q)}">
+ <select data-act="f" data-k="type" aria-label="Institution type"><option value="">All institutions</option><option value="bank"${F.type==="bank"?" selected":""}>Banks</option><option value="cu"${F.type==="cu"?" selected":""}>Credit unions</option><option value="fin"${F.type==="fin"?" selected":""}>Fintech</option><option value="brok"${F.type==="brok"?" selected":""}>Brokerage</option></select>
+ <select data-act="f" data-k="sort" aria-label="Sort">${[["amt","Biggest bonus"],["odds","Best approval odds"],["easy","Least direct deposit"],["exp","Ending soonest"],["bank","Bank A–Z"]].map(([k,l])=>`<option value="${k}"${F.sort===k?" selected":""}>${l}</option>`).join("")}</select>
+ <label class="check"><input type="checkbox" data-act="f" data-k="nodd"${F.nodd?" checked":""}> No DD needed</label>
+ <label class="check"><input type="checkbox" data-act="f" data-k="chexok"${F.chexok?" checked":""}> Chex-friendly only</label>
+ <label class="check"><input type="checkbox" data-act="f" data-k="ddok"${F.ddok?" checked":""}> DD workarounds known</label>
+ <label class="check"><input type="checkbox" data-act="f" data-k="inel"${F.inel?" checked":""}> Show ones I don't qualify for</label></div>
+ <p class="count">${L.length} offers shown${hidden&&!F.inel?` · ${hidden} hidden that you don't qualify for`:""}${tracked?` · ${tracked} in My accounts`:""}</p>
+ ${L.length?`<div class="grid">${L.map(x=>card(x.o)).join("")}</div>`:`<div class="empty">No offers match. Try clearing filters or raising your monthly direct deposit.</div>`}`}
+function mineCard(o){const t=S.track[o.id],dl=t.opened?addD(t.opened,o.win||90):null,sc=t.opened?addD(t.opened,o.keep||DEF_KEEP):null,re=reElig(o);
+ const need=o.dd||0,pct=need>1?Math.min(100,(+t.ddDone||0)/need*100):0,tp=o.tx?Math.min(100,(+t.txDone||0)/o.tx*100):0;
+ const inp=(k,l)=>`<label>${l}<input type="date" data-act="t" data-id="${esc(o.id)}" data-k="${k}" value="${esc(t[k]||"")}"></label>`;
+ const c=[];if(dl&&t.status==="open")c.push(`<span class="chip ${days(dl)<14?"w":""}">Requirements due ${fmt(dl)} (${days(dl)} days)</span>`);
+ if(sc&&["open","earned"].includes(t.status))c.push(`<span class="chip ${days(sc)<=0?"g":""}">${days(sc)<=0?"Safe to close now":"Safe to close after "+fmt(sc)}${o.keep?"":" (assumed)"}</span>`);
+ if(re&&re.life)c.push(`<span class="chip">One-time bonus</span>`);else if(re&&re.date)c.push(`<span class="chip k">Churn again ${fmt(re.date)}${re.assumed?" (assumed)":""}</span>`);
+ return `<article class="card" data-card="${esc(o.id)}"><div class="top"><div><h3>${esc(o.b)}</h3><small>${esc(o.a)}</small></div><div class="amt">${money(o.amt)}</div></div>
+ <p class="req">${esc(o.req||"")}</p><div class="chips">${c.join("")||'<span class="chip">Add dates to see deadlines</span>'}</div>
+ <div class="dates">${inp("applied","Applied")}${inp("opened","Opened")}${inp("bonusDate","Bonus posted")}${inp("closed","Closed")}</div>
+ ${["open","applied"].includes(t.status)?`<div class="two">${need>1?`<label>DD received so far<input type="number" min="0" step="100" data-act="t" data-id="${esc(o.id)}" data-k="ddDone" value="${+t.ddDone||0}"><div class="prog"><i style="width:${pct}%"></i></div><span class="note">${money(t.ddDone)} of ${money(need)}</span></label>`:""}
+ ${o.tx?`<label>Debit transactions done<input type="number" min="0" data-act="t" data-id="${esc(o.id)}" data-k="txDone" value="${+t.txDone||0}"><div class="prog"><i style="width:${tp}%"></i></div><span class="note">${+t.txDone||0} of ${o.tx}</span></label>`:""}</div>`:""}
+ ${t.status==="earned"||t.status==="closed"?`<label>Bonus amount received<input type="number" min="0" data-act="t" data-id="${esc(o.id)}" data-k="got" value="${esc(t.got??o.amt)}"></label>`:""}
+ <label>Notes<textarea data-act="t" data-id="${esc(o.id)}" data-k="notes" placeholder="Login, which paycheck you routed, fee waiver…">${esc(t.notes||"")}</textarea></label>
+ <div class="foot">${selStatus(o)}</div></article>`}
+function viewMine(){const L=all().filter(o=>S.track[o.id]?.status);
+ if(!L.length)return `<div class="empty">Nothing tracked yet. On <b>Find offers</b>, set an offer's status to Applied, Open or Denied and it shows up here with its deadlines.</div>`;
+ const bar=askReset?`<div class="panel bar" role="alertdialog" aria-label="Confirm reset"><span style="flex:1 1 260px"><b>Reset all ${L.length} accounts?</b> Every account goes back to Find offers and its dates, progress and notes are cleared. Your profile and any offers you added stay.</span><button class="btn" data-act="reset-do" style="background:var(--mag)">Reset everything</button><button class="btn ghost" data-act="reset-no">Cancel</button></div>`
+  :`<div class="bar" style="justify-content:space-between"><span class="note">${L.length} tracked · set one to "Not started" to send just that offer back</span><button class="btn ghost" data-act="reset-ask">Reset My accounts</button></div>`;
+ return bar+[["open","Open — working on requirements"],["applied","Applied, waiting"],["planned","Planning to apply"],["earned","Bonus received — waiting to close"],["closed","Closed"],["denied","Denied"]].map(([k,h])=>{const g=L.filter(o=>S.track[o.id].status===k);return g.length?`<h2 class="sec">${h} <span class="note">(${g.length})</span></h2><div class="grid">${g.map(mineCard).join("")}</div>`:""}).join("")}
+function events(){const E=[];for(const o of all()){const t=S.track[o.id];if(!t||!t.status)continue;
+ if(t.status==="open"&&t.opened)E.push({d:addD(t.opened,o.win||90),what:"Requirements deadline",o});
+ if(["open","earned"].includes(t.status)&&t.opened)E.push({d:addD(t.opened,o.keep||DEF_KEEP),what:"Safe to close",o});
+ if(["earned","closed"].includes(t.status)){const re=reElig(o);if(re&&re.date)E.push({d:re.date,what:"Can churn again",o})}}
+ return E.sort((a,b)=>a.d.localeCompare(b.d))}
+function viewCal(){const E=events();if(!E.length)return `<div class="empty">Add an Opened date to a tracked account and its deadline, safe-close date and re-eligibility date appear here.</div>`;
+ return `<div class="panel">${E.map(e=>`<div class="ev"><time class="${e.d<today()&&e.what!=="Can churn again"?"late":""}">${fmt(e.d)}</time><div><b>${esc(e.what)}</b> · ${esc(e.o.b)} <span class="note">${esc(e.o.a)}</span></div><span class="note">${days(e.d)>=0?"in "+days(e.d)+" days":Math.abs(days(e.d))+" days ago"}</span></div>`).join("")}</div>`}
+function viewData(){return `<div class="cols"><section class="panel"><h2 class="sec">Add an offer</h2><p class="note">Found a bonus that isn't listed (a local credit union, a referral)? Add it and it's tracked like the rest.</p>
+ <form id="add"><div class="two"><label>Bank<input name="b" required></label><label>Account<input name="a"></label>
+ <label>Bonus ($)<input name="amt" type="number" min="0" required></label><label>Total direct deposit ($)<input name="dd" type="number" min="0"></label>
+ <label>Days to complete<input name="win" type="number" min="1" value="90"></label><label>Debit transactions<input name="tx" type="number" min="0"></label>
+ <label>Keep open (days)<input name="keep" type="number" min="0"></label><label>Churn every (months)<input name="cd" type="number" min="0"></label></div>
+ <label>States (blank = nationwide, e.g. "IL WI")<input name="st"></label><label>Requirements<input name="req"></label><label>Link (https://…)<input name="url"></label>
+ <p><button class="btn" type="submit">Add offer</button></p></form>
+ ${S.custom.length?`<h3>Your offers</h3>${S.custom.map(c=>`<div class="ev"><div><b>${esc(c.b)}</b> ${money(c.amt)}</div><span></span><button class="btn ghost" data-act="del" data-id="${esc(c.id)}">Remove</button></div>`).join("")}`:""}</section>
+ <section class="panel"><h2 class="sec">Back up or move your data</h2><p class="note" id="sync">${ref?"Saved to your Claude account — it follows you across devices.":"Saved in this browser only."}</p>
+ <p><button class="btn" data-act="copy">Copy backup</button></p><label>Restore from backup<textarea id="imp" placeholder="Paste a backup here"></textarea></label><p><button class="btn ghost" data-act="imp">Restore</button></p>
+ <h2 class="sec">About the data</h2><p class="note">Offers compiled November 26, 2026 from Fat Stacks Academy, Doctor of Credit, Bankrate, US News, WalletHub and Forbes. Bonus terms change often and some are targeted or regional — always confirm on the bank's offer page before you apply. Where a bank doesn't state how long to keep the account open or how often you can earn the bonus again, this app plans for ${DEF_KEEP} days and ${DEF_CD} months and marks those dates "assumed". Bonuses are usually reported as taxable interest (1099-INT).</p>
+ <p class="note">Sources: <a href="https://www.fatstacksacademy.com/blog/best-checking-bonuses-2026" target="_blank" rel="noopener">Fat Stacks</a> · <a href="https://www.doctorofcredit.com/best-bank-account-bonuses/" target="_blank" rel="noopener">Doctor of Credit</a> · <a href="https://www.bankrate.com/banking/best-bank-account-bonuses-and-promotions/" target="_blank" rel="noopener">Bankrate</a> · <a href="https://www.usnews.com/banking/bank-account-bonuses" target="_blank" rel="noopener">US News</a></p></section></div>`}
+const RM=matchMedia("(prefers-reduced-motion: reduce)");
+let busy=0;
+function render(){if(busy)return;stats();const V={find:viewFind,mine:viewMine,cal:viewCal,guide:viewGuide,data:viewData}[tab];
+ const before={};document.querySelectorAll("[data-card]").forEach(c=>before[c.dataset.card]=c.getBoundingClientRect());
+ const a=document.activeElement,fk=a&&a.dataset&&a.dataset.act?`[data-act="${a.dataset.act}"]${a.dataset.k?`[data-k="${a.dataset.k}"]`:""}${a.dataset.id?`[data-id="${CSS.escape(a.dataset.id)}"]`:""}`:null;
+ $("#view").innerHTML=V();
+ if(fk){const s=$("#view "+fk);if(s){s.focus();if(s.type==="search"||s.type==="text")s.setSelectionRange(s.value.length,s.value.length)}}
+ if(!RM.matches)document.querySelectorAll("[data-card]").forEach(c=>{const b=before[c.dataset.card];if(!b)return;const n=c.getBoundingClientRect(),dx=b.left-n.left,dy=b.top-n.top;
+  if(dx||dy)c.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:"none"}],{duration:420,easing:"cubic-bezier(.2,.8,.2,1)"})});
+ const n=all().filter(o=>S.track[o.id]?.status).length;
+ document.querySelectorAll("#tabs button").forEach(b=>{b.setAttribute("aria-selected",b.dataset.tab===tab);if(b.dataset.tab==="mine")b.innerHTML="My accounts"+(n?`<span class="badge">${n}</span>`:"")})}
+// ---- exit animations: each status leaves the list its own way ----
+const LABEL={planned:"Planned",applied:"Applied",open:"Opened",earned:"Bonus paid",closed:"Closed",denied:"Denied"};
+const wait=a=>a.finished.catch(()=>{});
+function stampIn(card,v,rot){const s=document.createElement("div");s.className="stamp st-"+v;s.textContent=LABEL[v];card.appendChild(s);
+ return wait(s.animate([{opacity:0,transform:`translate(-50%,-50%) rotate(${rot}deg) scale(2.4)`},{opacity:1,transform:`translate(-50%,-50%) rotate(${rot}deg) scale(.92)`,offset:.7},{opacity:1,transform:`translate(-50%,-50%) rotate(${rot}deg) scale(1)`}],{duration:380,easing:"cubic-bezier(.3,1.4,.5,1)",fill:"forwards"}))}
+function flyTo(card,opts={}){const t=document.querySelector('#tabs [data-tab="mine"]').getBoundingClientRect(),c=card.getBoundingClientRect();
+ const dx=t.left+t.width/2-(c.left+c.width/2),dy=t.top+t.height/2-(c.top+c.height/2),r=opts.rot||0,lift=opts.lift||0;
+ return wait(card.animate([{transform:"none",opacity:1},{transform:`translate(${dx*.45}px,${dy*.45-lift}px) rotate(${r/2}deg) scale(.55)`,opacity:1,offset:.5},{transform:`translate(${dx}px,${dy}px) rotate(${r}deg) scale(.04)`,opacity:.2}],{duration:opts.dur||650,easing:"cubic-bezier(.55,0,.35,1)",fill:"forwards"}))}
+function coins(card){const c=card.getBoundingClientRect(),cx=c.left+c.width/2,cy=c.top+c.height/2,P=[];
+ for(let i=0;i<22;i++){const e=document.createElement("div");e.className="coin"+(i%4?"":" m");e.textContent="$";e.style.left=cx+"px";e.style.top=cy+"px";document.body.appendChild(e);
+  const a=Math.random()*Math.PI*2,d=90+Math.random()*170,x=Math.cos(a)*d,y=Math.sin(a)*d-80,sp=(Math.random()*720-360)|0;
+  P.push(wait(e.animate([{transform:"scale(.2)",opacity:1},{transform:`translate(${x}px,${y}px) rotate(${sp/2}deg) scale(1)`,opacity:1,offset:.45},{transform:`translate(${x*1.15}px,${y+220}px) rotate(${sp}deg) scale(.8)`,opacity:0}],{duration:1100+Math.random()*300,easing:"cubic-bezier(.2,.7,.4,1)",fill:"forwards"})).then(()=>e.remove()))}
+ return Promise.all(P)}
+// ---- payday: money printer + cash rain + "cha-ching" (sound synthesized live, no files) ----
+let AC=null;
+function audio(){if(S.profile.sound===false)return null;try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==="suspended")AC.resume();return AC}catch(e){return null}}
+function noise(ac,len){const b=ac.createBuffer(1,ac.sampleRate*len,ac.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;const s=ac.createBufferSource();s.buffer=b;return s}
+function env(ac,node,t,a,peak,dec,dest){const g=ac.createGain();g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+a);g.gain.exponentialRampToValueAtTime(0.0001,t+a+dec);node.connect(g);g.connect(dest);return g}
+function paySound(ac,bills,gap,printDur){const t0=ac.currentTime+.05,out=ac.createGain();out.gain.value=.7;out.connect(ac.destination);
+ // printer motor: buzzy hum with a flutter, under paper "ticks" as each bill feeds out
+ const m=ac.createOscillator();m.type="sawtooth";m.frequency.setValueAtTime(70,t0);m.frequency.linearRampToValueAtTime(95,t0+printDur);
+ const mf=ac.createBiquadFilter();mf.type="lowpass";mf.frequency.value=600;m.connect(mf);
+ const mg=ac.createGain();mg.gain.setValueAtTime(0.0001,t0);mg.gain.exponentialRampToValueAtTime(.12,t0+.08);mg.gain.setValueAtTime(.12,t0+printDur-.08);mg.gain.exponentialRampToValueAtTime(0.0001,t0+printDur);
+ const lfo=ac.createOscillator(),lg=ac.createGain();lfo.frequency.value=22;lg.gain.value=.05;lfo.connect(lg);lg.connect(mg.gain);
+ mf.connect(mg);mg.connect(out);m.start(t0);m.stop(t0+printDur+.05);lfo.start(t0);lfo.stop(t0+printDur+.05);
+ for(let i=0;i<bills;i++){const t=t0+.22+i*gap,n=noise(ac,.07),f=ac.createBiquadFilter();f.type="bandpass";f.frequency.value=2400+Math.random()*900;f.Q.value=1.2;n.connect(f);env(ac,f,t,.004,.35,.06,out);n.start(t);n.stop(t+.08)}
+ // "cha": register drawer slam
+ const tc=t0+printDur+.02,n=noise(ac,.25),lp=ac.createBiquadFilter();lp.type="lowpass";lp.frequency.value=1800;n.connect(lp);env(ac,lp,tc,.003,.9,.16,out);n.start(tc);n.stop(tc+.25);
+ const k=ac.createOscillator();k.type="triangle";k.frequency.setValueAtTime(180,tc);k.frequency.exponentialRampToValueAtTime(55,tc+.12);env(ac,k,tc,.003,.6,.14,out);k.start(tc);k.stop(tc+.2);
+ const r=noise(ac,.18),hp=ac.createBiquadFilter();hp.type="highpass";hp.frequency.value=5000;r.connect(hp);env(ac,hp,tc+.03,.01,.18,.14,out);r.start(tc+.03);r.stop(tc+.22);
+ // "ching": two bright bell strikes with inharmonic partials
+ [[tc+.11,1760,.5],[tc+.2,2349,.42]].forEach(([t,f,p])=>[[1,1],[2.01,.5],[2.76,.32],[5.4,.16],[8.1,.07]].forEach(([mul,gm])=>{const o=ac.createOscillator();o.type="sine";o.frequency.value=f*mul;env(ac,o,t,.002,p*gm,1.6/mul**.5,out);o.start(t);o.stop(t+1.8)}));
+ return tc}
+function burstAt(cx,cy,n){const P=[];for(let i=0;i<n;i++){const e=document.createElement("div");e.className="coin"+(i%4?"":" m");e.textContent="$";e.style.left=cx+"px";e.style.top=cy+"px";document.body.appendChild(e);
+ const a=Math.random()*Math.PI*2,d=120+Math.random()*220,x=Math.cos(a)*d,y=Math.sin(a)*d-90,sp=(Math.random()*900-450)|0;
+ P.push(wait(e.animate([{transform:"scale(.2)",opacity:1},{transform:`translate(${x}px,${y}px) rotate(${sp/2}deg) scale(1.1)`,opacity:1,offset:.4},{transform:`translate(${x*1.2}px,${y+300}px) rotate(${sp}deg) scale(.8)`,opacity:0}],{duration:1300+Math.random()*400,easing:"cubic-bezier(.2,.7,.4,1)",fill:"forwards"})).then(()=>e.remove()))}return Promise.all(P)}
+function rain(n){const P=[],W=innerWidth,H=innerHeight;for(let i=0;i<n;i++){const b=document.createElement("div");b.className="bill fall";b.innerHTML="<span>100</span><span>100</span>";document.body.appendChild(b);
+ const x=Math.random()*(W-130),r0=Math.random()*60-30,r1=r0+(Math.random()*240-120),sw=Math.random()*120-60,delay=Math.random()*500;
+ P.push(wait(b.animate([{transform:`translate(${x}px,-80px) rotate(${r0}deg) rotateX(0deg)`,opacity:1},{transform:`translate(${x+sw}px,${H*.5}px) rotate(${(r0+r1)/2}deg) rotateX(180deg)`,offset:.5},{transform:`translate(${x-sw}px,${H+80}px) rotate(${r1}deg) rotateX(360deg)`,opacity:1}],{duration:1600+Math.random()*900,delay,easing:"cubic-bezier(.35,.1,.6,1)",fill:"both"})).then(()=>b.remove()))}return Promise.all(P)}
+async function payday(card,o,fly=true){
+ const BILLS=7,GAP=.12,PRINT=.22+BILLS*GAP+.2,ac=audio();if(ac)paySound(ac,BILLS,GAP,PRINT);
+ const mint=document.createElement("div");mint.className="mint";
+ mint.innerHTML=`<div class="tray"></div><div class="printer"><b>MINT</b><i></i></div>`;card.appendChild(mint);
+ const tray=mint.firstChild,pr=mint.lastChild,A=(el,k,op)=>wait(el.animate(k,op));
+ await A(pr,[{transform:"translateY(-40px)",opacity:0},{transform:"translateY(0)",opacity:1}],{duration:200,easing:"cubic-bezier(.3,1.5,.5,1)",fill:"forwards"});
+ const shake=pr.animate([0,-2,2,-1,1,0].map(y=>({transform:`translate(${y}px,${-y}px)`})),{duration:120,iterations:Math.ceil((PRINT-.2)/.12)});
+ const H=tray.clientHeight,feeds=[];
+ for(let i=0;i<BILLS;i++){const b=document.createElement("div");b.className="bill";b.innerHTML="<span>100</span><span>100</span>";tray.appendChild(b);
+  const y=H-52-i*7,rot=(Math.random()*8-4).toFixed(1);
+  feeds.push(A(b,[{transform:"translateY(-50px)"},{transform:"translateY(14px)",offset:.35},{transform:`translateY(${y}px) rotate(${rot}deg)`}],{duration:430,delay:(.22+i*GAP)*1000-200,easing:"cubic-bezier(.4,0,.3,1.3)",fill:"both"}))}
+ await Promise.all(feeds);shake.cancel();
+ // cha-ching!
+ const pd=document.createElement("div");pd.className="paid";pd.innerHTML=`<div class="rays"></div><div class="big">$</div><div class="msg">You got paid!<span>+${money(S.track[o.id]?.got??o.amt)}</span></div>`;document.body.appendChild(pd);
+ const [rays,big,msg]=pd.children;
+ rays.animate([{transform:"rotate(0) scale(.3)",opacity:0},{transform:"rotate(40deg) scale(1)",opacity:1,offset:.15},{transform:"rotate(160deg) scale(1.1)",opacity:1,offset:.85},{transform:"rotate(190deg) scale(1.2)",opacity:0}],{duration:1900,fill:"forwards"});
+ big.animate([{transform:"scale(0) rotate(-30deg)"},{transform:"scale(1.25) rotate(8deg)",offset:.12},{transform:"scale(.95) rotate(-3deg)",offset:.2},{transform:"scale(1) rotate(0)",offset:.28},{transform:"scale(1) rotateY(720deg)",offset:.75},{transform:"scale(0)",opacity:0}],{duration:1900,easing:"ease-out",fill:"forwards"});
+ msg.animate([{transform:"translateY(30px) scale(.6)",opacity:0},{transform:"translateY(0) scale(1.08)",opacity:1,offset:.18},{transform:"scale(1)",opacity:1,offset:.3},{transform:"scale(1)",opacity:1,offset:.82},{transform:"translateY(-20px)",opacity:0}],{duration:1900,fill:"forwards"});
+ const c=pd.getBoundingClientRect(),fx=[burstAt(c.left,c.top,28),rain(16)];
+ A(card,[0,-6,6,-4,4,0].map(x=>({transform:`translateX(${x}px)`})),{duration:300});
+ await new Promise(r=>setTimeout(r,1100));
+ if(fly)await flyTo(card,{dur:650,lift:60});else await A(mint,[{opacity:1},{opacity:0,transform:"translateY(20px)"}],{duration:450,fill:"forwards"});
+ await Promise.race([Promise.all(fx),new Promise(r=>setTimeout(r,1500))]);pd.remove()}
+async function exitCard(card,v,o){card.classList.add("flying");card.querySelectorAll("select").forEach(s=>s.disabled=true);
+ if(RM.matches){await wait(card.animate([{opacity:1},{opacity:0}],{duration:200,fill:"forwards"}));return}
+ const A=(k,o)=>wait(card.animate(k,o));
+ if(v==="planned"){await stampIn(card,v,-8);await A([{transform:"none"},{transform:"translateY(-6px)"}],{duration:160,fill:"forwards"});await flyTo(card,{lift:40})}
+ else if(v==="applied"){ // paper plane: tilt back, then launch up and over in an arc
+  await stampIn(card,v,-6);await A([{transform:"none"},{transform:"translate(-14px,14px) rotate(4deg) scale(.96)"}],{duration:220,easing:"ease-out",fill:"forwards"});
+  await flyTo(card,{rot:-38,lift:160,dur:760})}
+ else if(v==="open"){ // green glow pulse, then zoom in
+  stampIn(card,v,-4);await A([{boxShadow:"0 0 0 0 #0d7a4f00"},{boxShadow:"0 0 0 10px #4fd39a88",transform:"scale(1.04)"},{boxShadow:"0 0 0 18px #4fd39a00",transform:"scale(1)"}],{duration:520,fill:"forwards"});await flyTo(card)}
+ else if(v==="earned")await payday(card,o)
+ else if(v==="closed"){ // the account folds shut like a ledger, then slides away
+  await stampIn(card,v,0);card.style.transformOrigin="top";await A([{transform:"none"},{transform:"perspective(800px) rotateX(70deg) scaleY(.6)",opacity:.8,offset:.6},{transform:"perspective(800px) rotateX(90deg) scaleY(.05)",opacity:.6}],{duration:520,easing:"ease-in",fill:"forwards"});
+  await A([{transform:"scaleY(.05)",opacity:.6},{transform:"translateX(60px) scaleY(.05)",opacity:0}],{duration:260,fill:"forwards"})}
+ else if(v==="denied"){ // red stamp, head-shake, then it drops off the page
+  await stampIn(card,v,-14);await A([0,-12,12,-9,9,-5,5,0].map(x=>({transform:`translateX(${x}px)`})),{duration:460,fill:"forwards"});
+  await A([{transform:"none",opacity:1},{transform:"translateY(40px) rotate(6deg)",opacity:.9,offset:.3},{transform:"translateY(520px) rotate(22deg)",opacity:0}],{duration:700,easing:"cubic-bezier(.5,0,.9,.4)",fill:"forwards"})}}
+function pulseTab(){const b=document.querySelector('#tabs [data-tab="mine"]');if(b&&!RM.matches)b.animate([{transform:"scale(1)"},{transform:"scale(1.14)"},{transform:"scale(1)"}],{duration:380,easing:"cubic-bezier(.3,1.6,.5,1)"})}
+async function setStatus(id,v,el){const t=T(id),o=all().find(x=>x.id===id),was=t.status;t.status=v;t.u=now();const d=today();
+ if(v==="applied"&&!t.applied)t.applied=d;if(v==="open"&&!t.opened)t.opened=d;
+ if(v==="earned"&&!t.bonusDate){t.bonusDate=d;t.got=o.amt}if(v==="closed"&&!t.closed)t.closed=d;
+ if(!v)S.track[id]={u:now()};save();
+ const card=el&&el.closest("[data-card]");
+ if(tab==="find"&&v&&!was&&card){busy++;try{await exitCard(card,v,o)}finally{busy--}render();pulseTab();toast(`${o.b} moved to My accounts`,"mine");return}
+ if(v==="earned"&&was!=="earned"&&card&&!RM.matches){busy++;card.classList.add("flying");try{await payday(card,o,false)}finally{busy--;card.classList.remove("flying")}}
+ render();toast(v?"Marked "+STATUS.find(s=>s[0]===v)[1].toLowerCase():"Moved back to Find offers",v?"":"find")}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data-act]");if(!b)return;
+ if(b.dataset.tab){tab=b.dataset.tab;askReset=false;$("#toast").classList.remove("on");render();scrollTo({top:0,behavior:RM.matches?"auto":"smooth"});try{history.replaceState(null,"","#"+tab)}catch(x){}return}
+ const a=b.dataset.act;
+ if(a==="rvapply"&&RV){S.profile.chexInq=RV.inq.map(({name,date,vis,inc})=>({name,date,vis,inc}));S.profile.chex=countsFrom(S.profile.chexInq);S.profile.chexAuto=true;S.profile.u=now();RV=null;CHMSG="Counts updated from your report.";save();render();toast("ChexSystems counts updated")}
+ if(a==="rvcancel"){RV=null;CHMSG="";render()}
+ if(a==="chexpaste"){const t=$("#chexpaste")?.value||"";if(t.trim()){finishRead(parseReport(t),"pasted text");render()}}
+ if(a==="chexfill"){S.profile.chexAuto=false;S.profile.chex=fillChex();S.profile.u=now();save();render();toast("Estimated from accounts in your tracker — adjust to match your report")}
+ if(a==="reset-ask"||a==="reset-no"){askReset=a==="reset-ask";render();if(askReset)$('[data-act="reset-no"]')?.focus()}
+ if(a==="reset-do"){const u=now();undoSnap=JSON.parse(JSON.stringify(S.track));let n=0;
+  for(const id in S.track){if(S.track[id].status)n++;S.track[id]={u}}askReset=false;save();render();toast(`Reset ${n} account${n===1?"":"s"} — back in Find offers`,"find",1)}
+ if(a==="undo"&&undoSnap){const u=now();for(const id in undoSnap)undoSnap[id].u=u;S.track=undoSnap;undoSnap=null;save();render();toast("Restored your accounts")}
+ if(a==="del"){S.custom=S.custom.filter(c=>c.id!==b.dataset.id);S.gone=[...(S.gone||[]),b.dataset.id];S.track[b.dataset.id]={u:now()};save();render()}
+ if(a==="copy"){navigator.clipboard.writeText(JSON.stringify(S)).then(()=>toast("Backup copied"),()=>toast("Copy blocked — select the restore box text instead"))}
+ if(a==="imp"){try{const n=JSON.parse($("#imp").value);if(!n.profile||!n.track)throw 0;const u=now();n.profile.u=u;for(const k in n.track)n.track[k].u=u;S={...S,...n};save();render();toast("Restored")}catch(x){toast("That doesn't look like a backup")}}});
+document.addEventListener("input",e=>{const el=e.target;if(el.dataset.act==="f"&&el.dataset.k==="q"){F.q=el.value;render()}});
+document.addEventListener("change",e=>{const el=e.target,a=el.dataset.act;if(!a)return;
+ if(a==="status")return setStatus(el.dataset.id,el.value,el);
+ if(a==="prof"){const k=el.dataset.k;S.profile[k]=el.type==="checkbox"?el.checked:el.type==="number"?+el.value:el.value;S.profile.u=now();save();setTimeout(render,0)}
+ if(a==="chexfile"){const f=el.files&&el.files[0];el.value="";if(f)readFile(f);return}
+ if(a==="rvinc"&&RV){RV.inq[+el.dataset.i].inc=el.checked;setTimeout(render,0);return}
+ if(a==="chex"){S.profile.chexAuto=false;S.profile.chex={...(S.profile.chex||{}),[el.dataset.k]:el.value===""?null:Math.max(0,+el.value)};S.profile.u=now();save();setTimeout(render,0)}
+ if(a==="f"&&el.dataset.k!=="q"){F[el.dataset.k]=el.type==="checkbox"?el.checked:el.value;render()}
+ if(a==="t"){const t=T(el.dataset.id);t[el.dataset.k]=el.type==="number"?+el.value:el.value;t.u=now();save();if(el.tagName!=="TEXTAREA")render()}});
+document.addEventListener("dragover",e=>{if(e.target.closest&&e.target.closest(".chexdrop")){e.preventDefault();e.target.closest(".chexdrop").style.borderColor="var(--mag)"}});
+document.addEventListener("dragleave",e=>{const z=e.target.closest&&e.target.closest(".chexdrop");if(z)z.style.borderColor=""});
+document.addEventListener("drop",e=>{const z=e.target.closest&&e.target.closest(".chexdrop");if(!z)return;e.preventDefault();z.style.borderColor="";const f=e.dataTransfer.files[0];if(f)readFile(f)});
+function refreshChex(){if(S.profile.chexAuto&&Array.isArray(S.profile.chexInq))S.profile.chex=countsFrom(S.profile.chexInq)}
+document.addEventListener("toggle",e=>{const d=e.target;if(d.dataset&&d.dataset.det)d.open?OPEN.add(d.dataset.det):OPEN.delete(d.dataset.det)},true);
+document.addEventListener("submit",e=>{if(e.target.id!=="add")return;e.preventDefault();const f=new FormData(e.target),n=k=>f.get(k)===""?null:+f.get(k);
+ const st=String(f.get("st")||"").toUpperCase().split(/[^A-Z]+/).filter(s=>STATES.includes(s));
+ const url=String(f.get("url")||"");
+ S.custom.push({id:"c"+Date.now(),b:String(f.get("b")),a:String(f.get("a")||"Checking"),t:"bank",amt:n("amt")||0,dd:n("dd")||0,win:n("win")||90,tx:n("tx")||0,keep:n("keep"),cd:n("cd"),st:st.length?st:"ALL",pull:"?",fee:"—",req:String(f.get("req")||""),url:/^https:\/\//.test(url)?url:""});
+ save();render();toast("Offer added")});
+try{const s=JSON.parse(localStorage.getItem("cbt")||"null");if(s&&s.profile)S={...S,...s}}catch(e){}
+refreshChex();
+function ago(iso){const m=Math.round((Date.now()-new Date(iso))/6e4);return m<2?"just now":m<60?m+" minutes ago":m<1440?Math.round(m/60)+" hours ago":Math.round(m/1440)+" days ago"}
+function freshLine(){const e=$("#fresh");if(!e)return;if(!META){e.textContent="Showing the built-in offer list (researched Nov 26, 2026).";return}
+ const ok=META.sources.filter(s=>s.ok).map(s=>s.name),bad=META.sources.filter(s=>!s.ok);
+ e.textContent=`Offers checked ${ago(META.generated)}`+(ok.length?` · from ${ok.join(" and ")}`:"")+(bad.length?` · couldn't read ${bad.map(s=>s.name).join(", ")} this time${bad.some(s=>s.lastOk)?" (using its last good data)":""}`:"")}
+(async()=>{try{const r=await fetch("data/offers.json",{cache:"no-store"});if(!r.ok)throw 0;const j=await r.json();
+ if(!Array.isArray(j.offers)||j.offers.length<10)throw 0;const NUM=["amt","dd","mindd","mdd","dep","win","tx","keep","cd","spend","prevAmt"];
+ const clean=o=>{const x={...o};for(const k of NUM)x[k]=x[k]==null||x[k]===""||!isFinite(+x[k])?(k==="keep"||k==="cd"?null:undefined):+x[k];
+  x.st=Array.isArray(x.st)?x.st.filter(s=>STATES.includes(s)):x.st==="ALL"?"ALL":"?";if(Array.isArray(x.st)&&!x.st.length)x.st="?";
+  for(const k of ["id","b","a","req","note","fee","pull","url","offerUrl","exp","seen","first","changed","t"])if(x[k]!=null)x[k]=String(x[k]);return x};
+ const L=j.offers.filter(o=>o&&o.id&&o.b&&+o.amt>0).map(clean);if(L.length<10)throw 0;OFFERS.length=0;OFFERS.push(...L);META=j;
+ FIRST_RUN=j.offers.reduce((m,o)=>o.first&&(!m||o.first<m)?o.first:m,"");}catch(e){META=null}
+ freshLine();render()})();
+setInterval(freshLine,60000);
+const h=(location.hash||"").slice(1);if(["find","mine","cal","guide","data"].includes(h))tab=h;
+render();
+(async()=>{try{if(!window.claude||!claude.use)return;const timer=new Promise(r=>setTimeout(()=>r(null),10000));
+ db=await Promise.race([claude.use("db"),timer]);const user=await Promise.race([claude.use("user"),timer]);if(!db||!user)return;
+ const uid=await user.id();if(!uid)return;ref=db.collection("data/users/"+uid).doc("state");
+ const r=await Promise.race([ref.get(),timer]);const d=r&&(typeof r.data==="function"?r.data():(r.data??r));
+ if(d&&d.profile&&d.track)S=merge(S,d);refreshChex();save();render()}catch(e){ref=null}})();
+}
+</script>
+</body>
+</html>
