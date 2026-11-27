@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Bonus Tracker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%231e6b4f'/%3E%3Ctext x='16' y='22' text-anchor='middle' font-family='Georgia,serif' font-size='18' font-weight='700' fill='%23fff'%3E$%3C/text%3E%3C/svg%3E">
 <meta name="description" content="Find checking account bonuses you qualify for, track every account, and know when to close and churn.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -215,7 +216,7 @@ abbr[title]{text-decoration:underline dotted;text-underline-offset:3px;cursor:he
 .mlist{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .mv{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 18px 14px 20px;background:var(--sheet);border:1px solid var(--rule);border-radius:12px;position:relative}
 .mv::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:3px;border-radius:0 3px 3px 0;background:var(--rule)}
-.mv.due::before{background:var(--brick)}.mv.close::before,.mv.go::before{background:var(--gold)}.mv.plan::before{background:var(--green)}.mv.wait::before{background:var(--mute)}
+.mv.due::before{background:var(--brick)}.mv.close::before,.mv.apply::before{background:var(--gold)}.mv.plan::before{background:var(--green)}.mv.wait::before{background:var(--mute)}
 .mv b{font-weight:600}.mv p{margin:2px 0 0;font-size:14px;color:var(--mute)}
 .mvact{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
 .planbox{display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:20px;align-items:end;margin:0 0 18px}
@@ -479,7 +480,7 @@ const DOC_SENS="https://www.doctorofcredit.com/banks-credit-unions-chexsystems-i
 const STATUS=[["","Not started"],["planned","Planning to apply"],["applied","Applied"],["open","Open — working on it"],["earned","Bonus received"],["closed","Closed"],["denied","Denied"]];
 const DEF_KEEP=180,DEF_CD=12;
 let S={profile:{state:"",ddCap:3000,cash:5000,mil:false},track:{},custom:[],v:1};
-let META=null,FIRST_RUN="",SIDE_OPEN=false,STAGE="",PLANALL=false;const STALE_DAYS=7;
+let META=null,FIRST_RUN="",SIDE_OPEN=false,STAGE="",PLANALL=false,FLIPNEXT=false;const STALE_DAYS=7;
 let tab="find",F={q:"",type:"",sort:"amt",inel:false,nodd:false,chexok:false,ddok:false},db=null,ref=null,saveT=null;
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -776,10 +777,12 @@ const keepD=o=>o.keep||DEF_KEEP;
 // ---------- planner: schedule new applications around paycheck capacity and a monthly pace ----------
 function plan(){const p=S.profile,cap=+p.ddCap||0,pace=+p.pace||2,T0=today(),H=182,out=[],act=[];
  for(const o of all()){const t=S.track[o.id];if(!t)continue;
-  if(t.status==="open"&&t.opened){const end=addD(t.opened,o.win||90);if(end>T0)act.push({end,m:mreq(o),dd:mreq(o)>0})}
-  if(t.status==="applied")act.push({end:addD(T0,(o.win||90)),m:mreq(o),dd:mreq(o)>0})}
+  const flexO=p.transfers&&DDX[DDK(o)]&&DDX[DDK(o)].lvl!=="strict",mm=flexO?0:mreq(o),isdd=mreq(o)>0&&!flexO;
+  if(t.status==="open"&&t.opened){const end=addD(t.opened,o.win||90);if(end>T0)act.push({start:t.opened,end,m:mm,dd:isdd})}
+  if(t.status==="applied")act.push({start:T0,end:addD(T0,(o.win||90)),m:mm,dd:isdd});
+  if(t.status==="planned"&&t.planOn){const s0=t.planOn<T0?T0:t.planOn;act.push({start:s0,end:addD(s0,o.win||90),m:mm,dd:isdd})}}
  const busy=new Set(all().filter(o=>["planned","applied","open"].includes(S.track[o.id]?.status)).map(grp));
- const recentApps=all().map(o=>S.track[o.id]?.applied).filter(Boolean);
+ const recentApps=all().map(o=>{const t=S.track[o.id];return t?.status==="planned"?(t.planOn&&t.planOn<T0?T0:t.planOn):t?.applied}).filter(Boolean);
  const best={};
  const maxDD=+p.splits||99;let ddNow=act.filter(a=>a.m>0).length;
  for(const o of all()){if(busy.has(grp(o)))continue;const t=S.track[o.id];if(t&&["applied","open","planned"].includes(t.status))continue;
@@ -796,12 +799,14 @@ function plan(){const p=S.profile,cap=+p.ddCap||0,pace=+p.pace||2,T0=today(),H=1
   const k=grp(o);if(!best[k]||best[k].score<score)best[k]={o,score,from,m,od,sens,flex,dd:mreq(o)>0}}
  const C=Object.values(best).sort((a,b)=>b.score-a.score);
  for(let w=0;w*7<=H&&C.length;w++){const d=addD(T0,w*7);
-  let free=cap-act.filter(a=>a.end>d).reduce((s,a)=>s+a.m,0);
+  const live=a=>(a.start||"")<=d&&a.end>d;let free=cap-act.filter(live).reduce((s,a)=>s+a.m,0);
   const inWin=x=>x>addD(d,-30)&&x<=d;let n=recentApps.filter(inWin).length+out.filter(x=>inWin(x.on)).length;
-  const ddAct=act.filter(a=>a.end>d&&a.dd).length;
-  for(let i=0;i<C.length&&n<pace;i++){const c=C[i];if(c.from>d||c.m>free)continue;if(c.dd&&!c.flex&&ddAct+out.filter(x=>x.dd&&!x.flex&&x.on<=d&&x.end>d).length>=maxDD)continue;
+  // an account fits only if paycheck room and split slots stay within limits for its whole requirements window
+  const fits=c=>{const end=addD(d,c.o.win||90),pts=[d,...act.map(a=>a.start).filter(x=>x&&x>d&&x<end)];
+   return pts.every(t=>{const on=act.filter(a=>(a.start||"")<=t&&a.end>t);return on.reduce((s,a)=>s+a.m,0)+c.m<=cap&&(!(c.dd&&!c.flex)||on.filter(a=>a.dd).length<maxDD)})};
+  for(let i=0;i<C.length&&n<pace;i++){const c=C[i];if(c.from>d||c.m>free||!fits(c))continue;
    out.push({o:c.o,on:d,m:c.m,od:c.od,sens:c.sens,flex:c.flex,dd:c.dd,end:addD(d,c.o.win||90),close:addD(d,keepD(c.o)+7),pay:addD(d,(c.o.win||90)+45)});
-   act.push({end:addD(d,c.o.win||90),m:c.m,dd:c.dd&&!c.flex});free-=c.m;n++;C.splice(i,1);i--}}
+   act.push({start:d,end:addD(d,c.o.win||90),m:c.m,dd:c.dd&&!c.flex});free-=c.m;n++;C.splice(i,1);i--}}
  return out}
 function planOffer(id,date){const t=S.track[id];
  if(t&&["closed","earned","denied"].includes(t.status)){const {history,...rest}=t;S.track[id]={history:[...(history||[]),rest],status:"planned",planOn:date,u:now()}}
@@ -818,7 +823,7 @@ function moves(P){const M=[],T0=today();
    if(sc<=T0)M.push({p:2,kind:"close",t:`Close ${B} now`,b:`It's past the safe-to-close date${feeAmt(o)?`, and it can charge ${money(feeAmt(o))} a month`:""}.${re&&re.date?` You can earn this bonus again from ${fmt(re.date)}.`:""}`,a:[["Mark closed","closed",id]]});
    else M.push({p:5,kind:"hold",t:`Keep ${B} open until ${fmt(sc)}`,b:`Closing earlier can cost you the bonus.${feeAmt(o)?` Meet the fee waiver until then so the ${money(feeAmt(o))} monthly fee doesn't eat into it.`:""}`,a:[]})}
   if(t.status==="applied"&&t.applied&&-days(t.applied)>=14)M.push({p:3,kind:"wait",t:`No answer from ${B}?`,b:`You applied ${-days(t.applied)} days ago. Call or check your email, then update the status.`,a:[["It's open","open",id],["Denied","denied",id]]});
-  if(t.status==="planned"&&t.planOn&&t.planOn<=T0)M.push({p:1,kind:"go",t:`Time to apply to ${B}`,b:`You planned this for ${fmt(t.planOn)}. ${o.req?esc(o.req):""}`,a:[["I applied","applied",id]]});
+  if(t.status==="planned"&&t.planOn&&t.planOn<=T0)M.push({p:1,kind:"apply",t:`Time to apply to ${B}`,b:`You planned this for ${fmt(t.planOn)}. ${o.req?esc(o.req):""}`,a:[["I applied","applied",id]]});
   if(t.status==="open"&&feeAmt(o)&&!M.some(m=>m.t.includes(B)))M.push({p:6,kind:"hold",t:`Watch the fee at ${B}`,b:`It charges ${money(feeAmt(o))} a month${/waiv/i.test(o.fee)?" unless you meet the fee waiver, usually a minimum balance or direct deposit":""}.`,a:[]})}
  for(const s of P.slice(0,3)){const o=s.o,now_=s.on<=addD(T0,6);
   M.push({p:now_?2:4,kind:"plan",t:`${now_?"Apply now":"Apply "+fmt(s.on).replace(/, \d{4}$/,"")}: ${esc(o.b)} for ${money(o.amt)}`,b:`${!mreq(o)?"No paycheck needed.":s.flex?`Needs ${money(mreq(o))} a month in direct deposits; transfers from your own accounts usually count here.`:`Uses ${money(s.m)} a month of your paycheck until ${fmt(s.end)}.`}${s.od?` Approval odds ${oddsLbl(s.od.p)[0].toLowerCase()}.`:""}${s.sens?" This bank is strict about recent applications, so it's early in the plan.":""}`,a:[["Add to my plan","plan",esc(o.id),s.on]]})}
@@ -915,8 +920,10 @@ function intake(){const p=S.profile,err=ERRSTEP===ISTEP?missing(ISTEP):[],bad=ne
  <div class="ibody">${body}</div>
  <div class="inav"><button class="btn ghost" data-act="istep" data-k="${ISTEP-1}"${ISTEP===0?" disabled":""}>Back</button>
  <p class="${err.length?"ierr":"ihint"}" role="${err.length?"alert":"status"}">${err.length?`Answer the ${err.length===1?"highlighted question":`${err.length} highlighted questions`} to continue.`:left?`${left} question${left===1?"":"s"} left on this step.`:"All set. Continue when you're ready."}</p>
- ${ISTEP<4?`<button class="btn" data-act="inext">Next</button>`:`<button class="btn" data-act="idone">${IEDIT?"Done":"Show my plan"}</button>`}</div></section>`}
+ ${IEDIT&&ISTEP<4?`<button class="btn ghost" data-act="idone">Save and close</button>`:""}${ISTEP<4?`<button class="btn" data-act="inext">Next</button>`:`<button class="btn" data-act="idone">${IEDIT?"Save and close":"Show my plan"}</button>`}</div></section>`}
+let ISTART=false;
 function viewMine(){const L=all().filter(o=>S.track[o.id]?.status),ready=S.profile.intakeDone&&S.profile.state;
+ if(!ready&&!ISTART){ISTART=true;ISTEP=Math.min(firstOpen(),4)}
  if(!ready||IEDIT){const parts=intake();return parts+(L.length&&!IEDIT?`<p class="note" style="margin:14px 0 22px">Your ${L.length} tracked account${L.length===1?" is":"s are"} below. Suggestions appear once you finish.</p>`+timeline([])+mineCards(L):"")}
  const P=plan();
  if(!L.length&&!P.length)return `<div class="empty"><b>No accounts yet.</b><br>Choose your state on Find offers to get a suggested plan, or pick a status like "Applied" on any offer and it moves here.</div>`;
@@ -952,15 +959,19 @@ function viewData(){return `<div class="cols"><section class="panel"><h2 class="
  <p class="note">Sources: <a href="https://www.fatstacksacademy.com/blog/best-checking-bonuses-2026" target="_blank" rel="noopener">Fat Stacks</a> · <a href="https://www.doctorofcredit.com/best-bank-account-bonuses/" target="_blank" rel="noopener">Doctor of Credit</a> · <a href="https://www.bankrate.com/banking/best-bank-account-bonuses-and-promotions/" target="_blank" rel="noopener">Bankrate</a> · <a href="https://www.usnews.com/banking/bank-account-bonuses" target="_blank" rel="noopener">US News</a></p></section></div>`}
 const RM=matchMedia("(prefers-reduced-motion: reduce)");
 let busy=0;
-function render(){if(busy)return;stats();const V={find:viewFind,mine:viewMine,cal:viewCal,guide:viewGuide,data:viewData}[tab];
- const before={};document.querySelectorAll("[data-card]").forEach(c=>before[c.dataset.card]=c.getBoundingClientRect());
+function render(){if(busy)return;const _t=performance.now();try{render_()}finally{window.__lastRender=Math.round(performance.now()-_t)}}
+window.__plan=()=>plan().map(s=>({o:s.o,on:s.on,m:s.m,end:s.end,flex:!!s.flex,dd:!!s.dd}));
+function render_(){stats();const V={find:viewFind,mine:viewMine,cal:viewCal,guide:viewGuide,data:viewData}[tab];
+ const before={},flip=tab==="find"||FLIPNEXT;FLIPNEXT=false;if(flip)document.querySelectorAll("[data-card]").forEach(c=>before[c.dataset.card]=c.getBoundingClientRect());
+ const keep={};for(const sel of [".bankgrid-wrap",".tl-scroll",".side"]){const el=$("#view "+sel);if(el)keep[sel]=[el.scrollTop,el.scrollLeft]}
  const a=document.activeElement,fk=a&&a.dataset&&a.dataset.act?`[data-act="${a.dataset.act}"]${a.dataset.k?`[data-k="${a.dataset.k}"]`:""}${a.dataset.id?`[data-id="${CSS.escape(a.dataset.id)}"]`:""}`:null;
  $("#view").innerHTML=V();
- if(fk){const s=$("#view "+fk);if(s){s.focus();if(s.type==="search"||s.type==="text")s.setSelectionRange(s.value.length,s.value.length)}}
+ for(const sel in keep){const el=$("#view "+sel);if(el){el.scrollTop=keep[sel][0];el.scrollLeft=keep[sel][1];el.dataset.done=1}}
+ if(fk){const s=$("#view "+fk);if(s){s.focus({preventScroll:true});if(s.type==="search"||s.type==="text")s.setSelectionRange(s.value.length,s.value.length)}}
  if(!RM.matches)document.querySelectorAll("[data-card]").forEach(c=>{const b=before[c.dataset.card];if(!b)return;const n=c.getBoundingClientRect(),dx=b.left-n.left,dy=b.top-n.top;
   if(dx||dy)c.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:"none"}],{duration:420,easing:"cubic-bezier(.2,.8,.2,1)"})});
  const tls=$("#view .tl-scroll"),tl=tls&&tls.querySelector(".tl-axis .today-l");
- if(tls&&tl&&tls.scrollWidth>tls.clientWidth&&!tls.dataset.done){tls.scrollLeft=Math.max(0,tl.offsetLeft+tl.parentElement.offsetLeft-tls.clientWidth*.35)}
+ if(tls&&tl&&tls.scrollWidth>tls.clientWidth&&!tls.dataset.done&&!keep[".tl-scroll"]){tls.scrollLeft=Math.max(0,tl.offsetLeft+tl.parentElement.offsetLeft-tls.clientWidth*.35)}
  const n=all().filter(o=>S.track[o.id]?.status).length;
  document.querySelectorAll("#tabs button").forEach(b=>{b.setAttribute("aria-selected",b.dataset.tab===tab);if(b.dataset.tab==="mine")b.innerHTML="My accounts"+(n?`<span class="badge">${n}</span>`:"")})}
 // ---- exit animations: each status leaves the list its own way ----
@@ -1042,7 +1053,7 @@ async function exitCard(card,v,o){card.classList.add("flying");card.querySelecto
   await stampIn(card,v,-14);await A([0,-12,12,-9,9,-5,5,0].map(x=>({transform:`translateX(${x}px)`})),{duration:460,fill:"forwards"});
   await A([{transform:"none",opacity:1},{transform:"translateY(40px) rotate(6deg)",opacity:.9,offset:.3},{transform:"translateY(520px) rotate(22deg)",opacity:0}],{duration:700,easing:"cubic-bezier(.5,0,.9,.4)",fill:"forwards"})}}
 function pulseTab(){const b=document.querySelector('#tabs [data-tab="mine"]');if(b&&!RM.matches)b.animate([{transform:"scale(1)"},{transform:"scale(1.14)"},{transform:"scale(1)"}],{duration:380,easing:"cubic-bezier(.3,1.6,.5,1)"})}
-async function setStatus(id,v,el){const t=T(id),o=all().find(x=>x.id===id),was=t.status;t.status=v;t.u=now();const d=today();
+async function setStatus(id,v,el){FLIPNEXT=true;const t=T(id),o=all().find(x=>x.id===id),was=t.status;t.status=v;t.u=now();const d=today();
  if(v==="applied"&&!t.applied)t.applied=d;if(v==="open"&&!t.opened)t.opened=d;
  if(v==="earned"&&!t.bonusDate){t.bonusDate=d;t.got=o.amt}if(v==="closed"&&!t.closed)t.closed=d;
  if(!v)S.track[id]={u:now()};save();
@@ -1060,12 +1071,13 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data
  if(a==="istep"){const k=+b.dataset.k;if(k>=0&&k<=4&&k<=firstOpen()){ISTEP=k;ERRSTEP=-1;render();$("#view .intake")?.scrollIntoView({block:"start",behavior:RM.matches?"auto":"smooth"})}return}
  if(a==="inext"||a==="idone"){if(missing(ISTEP).length){ERRSTEP=ISTEP;render();const f=$(`#view .iq.err input,#view .iq.err select,#view .iq.err button`);if(f){f.focus({preventScroll:true});f.closest(".iq").scrollIntoView({block:"center",behavior:RM.matches?"auto":"smooth"})}return}
   ERRSTEP=-1;if(a==="inext"){ISTEP++;render();$("#view .intake")?.scrollIntoView({block:"start",behavior:RM.matches?"auto":"smooth"});$("#view .ibody input,#view .ibody select,#view .ibody .bk")?.focus({preventScroll:true});return}}
- if(a==="idone"){S.profile.intakeDone=true;S.profile.u=now();IEDIT=false;ISTEP=0;save();render();window.scrollTo({top:0,behavior:RM.matches?"auto":"smooth"});toast("Plan ready");return}
+ if(a==="idone"){const wasEdit=IEDIT;S.profile.intakeDone=true;S.profile.u=now();IEDIT=false;ISTEP=0;ERRSTEP=-1;save();render();
+  const top=$("#view").getBoundingClientRect().top+scrollY-76;window.scrollTo({top,behavior:RM.matches?"auto":"smooth"});toast(wasEdit?"Plan updated":"Plan ready");return}
  if(a==="iedit"){IEDIT=true;ISTEP=0;render();$("#view .intake")?.scrollIntoView({block:"start"});return}
  if(a==="bankadd"){const n=($("#bankadd")?.value||"").trim();if(!n)return;const k=bkey(n),B=S.profile.banks=S.profile.banks||{};B[k]=B[k]||"have";S.profile.bankNames={...(S.profile.bankNames||{}),[k]:n};
   S.profile.ia={...(S.profile.ia||{}),banks:true};S.profile.noBanks=false;S.profile.u=now();BQ="";save();render();toast(`Added ${n}`);return}
  if(a==="bank"){const k=b.dataset.k,B=S.profile.banks=S.profile.banks||{};B[k]=!B[k]?"have":B[k]==="have"?"recent":undefined;if(!B[k])delete B[k];
-  S.profile.ia={...(S.profile.ia||{}),banks:true};if(Object.keys(B).length)S.profile.noBanks=false;S.profile.u=now();save();render();$(`#view .bk[data-k="${CSS.escape(k)}"]`)?.focus();return}
+  S.profile.ia={...(S.profile.ia||{}),banks:true};if(Object.keys(B).length)S.profile.noBanks=false;S.profile.u=now();save();render();$(`#view .bk[data-k="${CSS.escape(k)}"]`)?.focus({preventScroll:true});return}
  if(a==="planall"){PLANALL=!PLANALL;render();return}
  if(a==="nm"){const id=b.dataset.id,k=b.dataset.k;if(k==="plan")planOffer(id,b.dataset.d||today());else setStatus(id,k,document.querySelector(`#view .card[data-card="${CSS.escape(id)}"] select[data-act="status"]`));return}
  if(a==="jump"){const c=document.querySelector(`#view .card[data-card="${CSS.escape(b.dataset.id)}"]`);if(c){c.scrollIntoView({behavior:RM.matches?"auto":"smooth",block:"center"});c.animate([{boxShadow:"0 0 0 3px var(--gold)"},{boxShadow:"0 0 0 0 transparent"}],{duration:1400})}return}
@@ -1093,7 +1105,9 @@ document.addEventListener("dragover",e=>{if(e.target.closest&&e.target.closest("
 document.addEventListener("dragleave",e=>{const z=e.target.closest&&e.target.closest(".chexdrop");if(z)z.style.borderColor=""});
 document.addEventListener("drop",e=>{const z=e.target.closest&&e.target.closest(".chexdrop");if(!z)return;e.preventDefault();z.style.borderColor="";const f=e.dataTransfer.files[0];if(f)readFile(f)});
 function refreshChex(){if(S.profile.chexAuto&&Array.isArray(S.profile.chexInq))S.profile.chex=countsFrom(S.profile.chexInq)}
-document.addEventListener("keydown",e=>{if(e.key==="Enter"&&e.target.id==="bankadd"){e.preventDefault();document.querySelector('[data-act="bankadd"]')?.click()}});
+document.addEventListener("keydown",e=>{if(e.key!=="Enter")return;
+ if(e.target.id==="bankadd"){e.preventDefault();document.querySelector('[data-act="bankadd"]')?.click();return}
+ if(e.target.closest&&e.target.closest(".intake .ibody")&&/INPUT|SELECT/.test(e.target.tagName)&&e.target.type!=="search"){e.preventDefault();e.target.dispatchEvent(new Event("change",{bubbles:true}));setTimeout(()=>document.querySelector('#view [data-act="inext"],#view .inav [data-act="idone"]:last-child')?.click(),0)}});
 document.addEventListener("toggle",e=>{const d=e.target;if(d.id==="side"&&!matchMedia("(min-width:1081px)").matches)SIDE_OPEN=d.open;if(d.dataset&&d.dataset.det)d.open?OPEN.add(d.dataset.det):OPEN.delete(d.dataset.det)},true);
 document.addEventListener("submit",e=>{if(e.target.id!=="add")return;e.preventDefault();const f=new FormData(e.target),n=k=>f.get(k)===""?null:+f.get(k);
  const st=String(f.get("st")||"").toUpperCase().split(/[^A-Z]+/).filter(s=>STATES.includes(s));
