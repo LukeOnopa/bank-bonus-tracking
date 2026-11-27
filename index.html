@@ -3,165 +3,240 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Checking Bonus Tracker</title>
+<title>Bonus Tracker</title>
+<meta name="description" content="Find checking account bonuses you qualify for, track every account, and know when to close and churn.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Red+Hat+Display:wght@600;700;800&family=Red+Hat+Text:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,600;6..96,700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* VOICE: a precise money tool — calm, exact, no fluff.
-   IDEA: a bank ledger / statement that tells you what to do next.
-   PICTURE: the working tracker itself; header band of four live totals.
-   COLOUR and TYPE: oxford blue band, white panels, magenta for dollars; Red Hat Display + Text.
-   LAYOUT: band with totals, tabs, then the live list; stacks to one column under 600px. */
+/* Bonus tracker — "engraved note" system.
+   Idea: bonuses are cash arriving, so the one bold element is a banknote (guilloche rosette, engraved numerals).
+   Everything else is quiet note paper and ink. Bodoni Moda only for money and headings; Public Sans for the interface. */
 :root{color-scheme:light dark;
---bg:light-dark(#eef1f7,#070f26);--panel:light-dark(#fff,#0f1a3a);--ink:light-dark(#0b1433,#e8ecf7);
---mute:light-dark(#56607a,#9aa5c4);--line:light-dark(#dde2ee,#22305a);--band:#0b1f4b;--mag:#e0115f;
---magsoft:light-dark(#fde7ef,#3a0f24);--ok:light-dark(#0d7a4f,#4fd39a);--oksoft:light-dark(#e3f5ec,#0f3326);
---warn:light-dark(#9a5b00,#f2b84b);--warnsoft:light-dark(#fdf1dc,#3a2a0c);--chip:light-dark(#f1f3f9,#18244a)}
+--paper:light-dark(#eef3ef,#0c1a15);--sheet:light-dark(#fbfdfb,#122119);--ink:light-dark(#17332a,#e2ede7);--mute:light-dark(#5b6f66,#94ab9f);
+--rule:light-dark(#d3ded8,#243a30);--green:light-dark(#1e6b4f,#74d1a3);--greenbg:light-dark(#1e6b4f,#2b8a65);--deep:light-dark(#123d2e,#08130f);
+--gold:light-dark(#8f6410,#e3b65c);--goldsoft:light-dark(#f5ecd8,#2c2312);--brick:light-dark(#a93226,#f2897d);--bricksoft:light-dark(#f7e4e0,#36181a);
+--oksoft:light-dark(#e1f0e7,#14342a);--note:light-dark(#dcebe2,#0f2a1f);--guil:light-dark(#9cc5b3,#2c5a48);--field:light-dark(#fff,#0f1d17);
+/* aliases used by the app's scripts */
+--bg:var(--paper);--panel:var(--sheet);--line:var(--rule);--band:var(--deep);--mag:var(--gold);--magsoft:var(--goldsoft);
+--ok:var(--green);--warn:light-dark(#8a5a06,#e8b25a);--warnsoft:var(--goldsoft);--chip:light-dark(#e6eee9,#1a2d25);
+--serif:"Bodoni Moda",Didot,"Bodoni 72",Georgia,serif;--sans:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif}
 :root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
 *{box-sizing:border-box;min-width:0}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Red Hat Text",system-ui,sans-serif;overflow-x:clip}
-h1,h2,h3,.fig-n{font-family:"Red Hat Display",system-ui,sans-serif}
-.wrap{max-width:1240px;margin:0 auto;padding:0 max(4vw,16px)}
-header{background:var(--band);color:#fff;padding:28px 0 0}
-h1{font-size:clamp(30px,4vw,44px);line-height:1.05;margin:0 0 4px;font-weight:800;text-wrap:balance}
-.sub{color:#b8c3e6;margin:0 0 22px;max-width:70ch}
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;background:#22356e;border-radius:12px 12px 0 0;overflow:hidden}
-.stat{background:#102a62;padding:16px 18px}
-.stat b{display:block;font:700 clamp(24px,3vw,34px)/1.1 "Red Hat Display",system-ui,sans-serif;white-space:nowrap}
-.stat span{color:#b8c3e6;font-size:14px}
-.stat.hot b{color:#ff5c96}
-.navband{background:var(--band);position:sticky;top:0;z-index:50;box-shadow:0 4px 14px #0b1f4b33}
-nav{display:flex;gap:4px;flex-wrap:wrap;padding:10px 0;background:var(--band)}
-nav button{background:none;border:0;color:#c9d2ee;font:600 16px "Red Hat Text",system-ui,sans-serif;padding:10px 16px;border-radius:8px;min-height:44px;cursor:pointer}
-nav button[aria-selected=true]{background:#fff;color:var(--band)}
-nav button:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--mag);outline-offset:2px}
-main{padding:24px 0 60px}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
-.prof{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;align-items:end;margin-bottom:16px}
-label{display:block;font-size:14px;color:var(--mute);font-weight:500}
-input,select,textarea{font:16px "Red Hat Text",system-ui,sans-serif;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:9px 10px;width:100%;min-height:44px;margin-top:4px}
-textarea{min-height:70px;resize:vertical}
-.check{display:flex;gap:8px;align-items:center;min-height:44px;color:var(--ink);font-size:15px}
-.check input{width:20px;min-height:20px;margin:0;accent-color:var(--mag)}
+html{scroll-padding-top:80px}
+body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 var(--sans);font-variant-numeric:lining-nums tabular-nums;overflow-x:clip;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;font-weight:600}
+a{color:var(--green);text-underline-offset:3px}
+.wrap{max-width:1320px;margin:0 auto;padding:0 max(3vw,16px)}
+/* masthead */
+.navband{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--rule)}
+.mast{display:flex;align-items:center;gap:24px;min-height:64px}
+.brand{display:flex;align-items:center;gap:10px;flex:none;font:600 21px/1 var(--serif);letter-spacing:-.01em;color:var(--ink);text-decoration:none}
+.brand svg{width:30px;height:30px;flex:none}
+nav{display:flex;gap:2px;flex:1;justify-content:flex-end;flex-wrap:wrap}
+nav button{position:relative;background:none;border:0;color:var(--mute);font:500 15px var(--sans);padding:10px 14px;border-radius:8px;min-height:44px;cursor:pointer}
+nav button:hover{color:var(--ink);background:var(--chip)}
+nav button[aria-selected=true]{color:var(--ink);font-weight:600}
+nav button[aria-selected=true]::after{content:"";position:absolute;left:14px;right:14px;bottom:2px;height:2px;border-radius:2px;background:var(--green)}
+.badge{display:inline-block;min-width:20px;padding:0 6px;margin-left:6px;border-radius:10px;background:var(--greenbg);color:#fff;font:600 12px/20px var(--sans);text-align:center}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+/* the note */
+header{padding:28px 0 8px}
+.note-hero{position:relative;overflow:hidden;border-radius:20px;background:var(--note);color:var(--ink);padding:clamp(22px,3.2vw,40px);display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:clamp(20px,4vw,56px);align-items:end;isolation:isolate}
+.note-hero::before{content:"";position:absolute;inset:10px;border:1px solid var(--guil);border-radius:13px;pointer-events:none}
+.note-hero::after{content:"";position:absolute;inset:14px;border:1px solid color-mix(in srgb,var(--guil) 55%,transparent);border-radius:10px;pointer-events:none}
+.guil{position:absolute;right:-90px;top:50%;width:520px;height:520px;transform:translateY(-50%);z-index:-1;color:var(--guil);opacity:.9}
+.guil.l{left:-260px;right:auto;width:380px;height:380px;opacity:.45}
+.hero-main p{margin:0;max-width:34ch;font-size:16px;color:var(--mute)}
+.hero-amt{display:block;font:500 clamp(56px,9vw,112px)/.92 var(--serif);letter-spacing:-.03em;color:var(--green);margin:0 0 12px;font-variant-numeric:lining-nums proportional-nums}
+.hero-amt sup{font-size:.42em;vertical-align:.95em;margin-right:.04em}
+.hero-main b{color:var(--ink);font-weight:600}
+.fresh{margin-top:14px!important;font-size:13px!important}
+.ledger{display:grid;gap:0;align-self:stretch;align-content:end;background:color-mix(in srgb,var(--sheet) 82%,transparent);border-radius:12px;padding:6px 18px;backdrop-filter:blur(2px)}
+.ledger div{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 16px;padding:12px 0;border-bottom:1px solid var(--rule);align-items:baseline}
+.ledger div:last-child{border-bottom:0}
+.ledger span{font-size:14px;color:var(--mute)}
+.ledger b{font:600 24px/1.1 var(--serif);white-space:nowrap;text-align:right}
+.ledger small{grid-column:1/-1;font-size:13px;color:var(--mute);margin-top:-2px}
+main.wrap{padding-top:24px;padding-bottom:80px}
+/* find layout */
+.findwrap{display:grid;grid-template-columns:320px minmax(0,1fr);gap:28px;align-items:start}
+.side{position:sticky;top:84px;max-height:calc(100vh - 100px);overflow:auto;display:grid;gap:14px;padding-right:4px;scrollbar-width:thin}
+.side>summary{display:none}
+.box{background:var(--sheet);border:1px solid var(--rule);border-radius:14px;padding:18px}
+.box h3{font:600 19px/1.2 var(--serif);margin-bottom:4px}
+.box>.note:first-of-type{margin-top:0}
+.prof{display:grid;gap:12px}
+.meter{margin-top:4px}
+.meter .prog{height:6px}
+.results{display:grid;gap:14px}
+.toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center}
+.toolbar input,.toolbar select{margin:0}
+.pills{display:flex;flex-wrap:wrap;gap:8px}
+.pill{position:relative;display:inline-flex;align-items:center;gap:6px;min-height:36px;padding:0 14px;border:1px solid var(--rule);border-radius:99px;background:var(--sheet);font-size:14px;color:var(--ink);cursor:pointer;user-select:none}
+.pill input{position:absolute;opacity:0;width:1px;height:1px}
+.pill:has(input:checked){background:var(--greenbg);border-color:var(--greenbg);color:#fff}
+.pill:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:2px}
+.count{margin:2px 0 0;color:var(--mute);font-size:14px}
+/* controls */
+label{display:block;font-size:13px;color:var(--mute);font-weight:500}
+input,select,textarea{font:15px var(--sans);color:var(--ink);background:var(--field);border:1px solid var(--rule);border-radius:8px;padding:9px 11px;width:100%;min-height:44px;margin-top:5px}
+input[type=search]{padding-left:36px;background:var(--field) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%235b6f66' stroke-width='2'%3E%3Ccircle cx='7' cy='7' r='5'/%3E%3Cpath d='m11 11 4 4'/%3E%3C/svg%3E") no-repeat 12px center}
+input:hover,select:hover,textarea:hover{border-color:color-mix(in srgb,var(--green) 40%,var(--rule))}
+textarea{min-height:72px;resize:vertical}
+.check{display:flex;gap:10px;align-items:center;min-height:40px;color:var(--ink);font-size:14px;font-weight:400}
+.check input{width:18px;min-height:18px;height:18px;margin:0;accent-color:var(--green)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--greenbg);color:#fff;border:0;border-radius:8px;font:600 14px var(--sans);padding:10px 16px;min-height:44px;cursor:pointer;text-decoration:none}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--rule)}
+.btn.ghost:hover{background:var(--chip)}
+.btn.danger{background:var(--brick)}
 .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 14px}
-.bar input[type=search]{flex:1 1 220px;margin:0}.bar select{flex:0 1 200px;margin:0}
-.count{color:var(--mute);font-size:14px;margin:0 0 12px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:14px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px}
-.card.inel{opacity:.62}
-.top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
-.top h3{margin:0;font-size:19px;line-height:1.2}
-.top small{display:block;color:var(--mute);font-size:14px}
-.amt{font:800 28px/1 "Red Hat Display",system-ui,sans-serif;color:var(--mag);white-space:nowrap}
+.note{font-size:14px;color:var(--mute);line-height:1.5}
+.panel{background:var(--sheet);border:1px solid var(--rule);border-radius:14px;padding:20px}
+.sec{font:600 26px/1.15 var(--serif);margin:34px 0 12px;letter-spacing:-.01em}
+.sec:first-child{margin-top:0}
+.empty{color:var(--mute);padding:48px 24px;text-align:center;border:1px dashed var(--rule);border-radius:14px;background:var(--sheet)}
+.empty b{color:var(--ink)}
+/* offer cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:14px}
+.card{position:relative;background:var(--sheet);border:1px solid var(--rule);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:12px;transition:border-color .15s}
+.card:hover{border-color:color-mix(in srgb,var(--green) 35%,var(--rule))}
+.card.inel{background:transparent}
+.card.inel .amt{color:var(--mute)}
+.top{display:flex;justify-content:space-between;gap:14px;align-items:flex-start}
+.top h3{font:600 19px/1.2 var(--sans);letter-spacing:-.01em}
+.top small{display:block;color:var(--mute);font-size:14px;margin-top:2px}
+.amtw{text-align:right;flex:none}
+.amt{font:500 38px/.95 var(--serif);color:var(--green);letter-spacing:-.02em;white-space:nowrap;font-variant-numeric:lining-nums proportional-nums}
+.amtw small{display:block;color:var(--mute);font-size:12px;margin-top:4px}
+.tag{display:inline-block;margin-top:6px;margin-left:4px;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;background:var(--chip);color:var(--mute)}
+.tag.new{background:var(--goldsoft);color:var(--gold)}
+.qual{margin:0;padding:0 0 0 12px;border-left:3px solid var(--rule);font-size:14px;font-weight:600;color:var(--mute)}
+.qual.yes{border-color:var(--green);color:var(--green)}.qual.no{border-color:var(--brick);color:var(--brick);font-weight:500}
+.qual.yes::before{content:"✓ "}
+.vfy{margin:-6px 0 0 15px;font-size:13px;color:var(--green)}.vfy::before{content:"✓ "}
+.lbl{margin:2px 0 -4px;font:600 13px var(--sans);color:var(--mute)}
+.steps{margin:0;padding:0;list-style:none;counter-reset:s;display:grid;gap:9px}
+.steps li{counter-increment:s;display:grid;grid-template-columns:24px minmax(0,1fr);gap:10px;font-size:15px;line-height:1.45}
+.steps li::before{content:counter(s);width:22px;height:22px;border-radius:50%;border:1px solid var(--green);color:var(--green);font:600 12px/20px var(--sans);text-align:center;margin-top:1px}
+.steps b{font-weight:600}
+abbr[title]{text-decoration:underline dotted;text-underline-offset:3px;cursor:help}
+.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px;margin:0;padding:14px 0 0;border-top:1px solid var(--rule)}
+.facts dt{font-size:12px;color:var(--mute)}.facts dd{margin:2px 0 0;font-size:14px;font-weight:500}
+.facts .muted{color:var(--mute);font-weight:400}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px;background:var(--mute)}.dot.o5{background:var(--green)}.dot.o3{background:var(--warn)}.dot.o1{background:var(--brick)}
+.heads{margin:0;font-size:14px;padding:10px 14px;background:var(--goldsoft);border-radius:10px;color:var(--ink)}
+.heads b{color:var(--gold)}
+.foot{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:auto;flex-wrap:wrap;padding-top:4px}
+.foot select{width:auto;flex:1 1 170px;margin:0}
+.go{font-weight:600;font-size:14px;color:var(--green)}
+.why{font-size:14px;color:var(--warn);margin:0}.why.ok{color:var(--green)}
 .req{margin:0;font-size:15px}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
-.chip{background:var(--chip);border-radius:6px;padding:3px 8px;font-size:13px;white-space:nowrap}
-.chip.k{background:var(--magsoft)}.chip.g{background:var(--oksoft);color:var(--ok)}.chip.w{background:var(--warnsoft);color:var(--warn)}
-.why{font-size:14px;color:var(--warn);margin:0}
-.why.ok{color:var(--ok)}
-.foot{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:auto;flex-wrap:wrap}
-.foot select{width:auto;flex:1 1 160px;margin:0}
-.foot a{color:var(--mute);font-size:14px}
-.btn{background:var(--band);color:#fff;border:0;border-radius:8px;font:600 15px "Red Hat Text",system-ui,sans-serif;padding:10px 16px;min-height:44px;cursor:pointer}
-.btn.ghost{background:none;color:var(--ink);border:1px solid var(--line)}
-:root[data-theme=dark] .btn,.btn{}
-.sec{font-size:22px;margin:26px 0 10px}
-.sec:first-child{margin-top:0}
-.dates{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-.prog{height:8px;background:var(--chip);border-radius:4px;overflow:hidden;margin-top:6px}
-.prog i{display:block;height:100%;background:var(--mag)}
-.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.ev{display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);align-items:center}
-.ev time{font:700 16px "Red Hat Display",system-ui,sans-serif;white-space:nowrap}
-.ev .late{color:var(--mag)}
-.empty{color:var(--mute);padding:30px;text-align:center;border:1px dashed var(--line);border-radius:12px}
-.note{font-size:14px;color:var(--mute)}
-.note a{color:inherit}
+.chip{background:var(--chip);border-radius:6px;padding:3px 9px;font-size:13px;white-space:nowrap}
+.chip.k{background:var(--goldsoft);color:var(--gold)}.chip.g{background:var(--oksoft);color:var(--green)}.chip.w{background:var(--goldsoft);color:var(--warn)}
+.chip.o5{background:var(--oksoft);color:var(--green);font-weight:600}.chip.o3{background:var(--goldsoft);color:var(--warn);font-weight:600}.chip.o1{background:var(--bricksoft);color:var(--brick);font-weight:600}
+.more{border-top:1px solid var(--rule);padding-top:8px}
+.more summary{cursor:pointer;font-weight:500;font-size:14px;min-height:36px;display:flex;align-items:center;gap:8px;list-style:none;color:var(--mute)}
+.more summary:hover{color:var(--ink)}
+.more summary::-webkit-details-marker{display:none}
+.more summary::before{content:"";width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+.more[open] summary::before{transform:rotate(45deg)}
+.more h4{font:600 14px var(--sans);margin:14px 0 6px}
+.mrow{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:3px 10px;font-size:14px;margin:7px 0}
+.mrow em{font-style:normal;text-align:right;white-space:nowrap;color:var(--mute)}
+.mrow .prog{grid-column:1/-1;margin:0;height:5px}
+.prog{height:6px;background:var(--chip);border-radius:4px;overflow:hidden;margin-top:6px}
+.prog i{display:block;height:100%;background:var(--green);border-radius:4px}
+.prog i.bad{background:var(--warn)}
+.why2{margin:4px 0;padding-left:18px;font-size:14px}
+/* my accounts */
+.stages{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:0;margin:0 0 22px;background:var(--sheet);border:1px solid var(--rule);border-radius:14px;overflow:hidden}
+.stage{background:none;border:0;border-right:1px solid var(--rule);padding:14px 16px;text-align:left;cursor:pointer;color:var(--ink);font:inherit;min-height:44px}
+.stage:last-child{border-right:0}
+.stage b{display:block;font:500 30px/1 var(--serif);color:var(--green)}
+.stage span{font-size:13px;color:var(--mute)}
+.stage[aria-pressed=true]{background:var(--oksoft)}
+.stage:hover{background:var(--chip)}
+.stage.zero b{color:var(--mute)}
+.dates{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+/* upcoming dates */
+.month{font:600 22px/1.2 var(--serif);margin:28px 0 8px}
+.month:first-child{margin-top:0}
+.ev{display:grid;grid-template-columns:64px minmax(0,1fr) auto;gap:16px;padding:14px 18px;align-items:center;background:var(--sheet);border:1px solid var(--rule);border-radius:12px;margin-bottom:8px}
+.ev time{display:grid;text-align:center;line-height:1}
+.ev time b{font:500 30px/1 var(--serif);color:var(--green)}
+.ev time small{font-size:12px;color:var(--mute);margin-top:3px}
+.ev.late time b{color:var(--brick)}
+.ev .what{font-weight:600}
+.ev .who{color:var(--mute);font-size:14px}
+.ev .when{font-size:13px;color:var(--mute);white-space:nowrap}
 .cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
-.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:var(--band);color:#fff;padding:8px 8px 8px 16px;border-radius:10px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none;display:flex;gap:12px;align-items:center;z-index:100;box-shadow:0 8px 24px #0004}
+.tbl{width:100%;border-collapse:collapse;font-size:15px}
+.tbl th{text-align:left;font-size:13px;color:var(--mute);font-weight:500;padding:10px 8px;border-bottom:1px solid var(--rule)}
+.tbl td{padding:11px 8px;border-bottom:1px solid var(--rule);vertical-align:top}
+.tbl td.n{text-align:right;white-space:nowrap}
+.chexrow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;align-items:end}
+.chexrow .btn{grid-column:1/-1}
+.panel>h3{font:600 22px/1.2 var(--serif)}
+.panel .chexrow{grid-template-columns:repeat(5,minmax(0,1fr)) auto}.panel .chexrow .btn{grid-column:auto}
+@media(max-width:820px){.panel .chexrow{grid-template-columns:repeat(3,minmax(0,1fr))}.panel .chexrow .btn{grid-column:1/-1}}
+.side .chexdrop{flex-direction:column;align-items:stretch}
+.scroll{overflow-x:auto}
+/* feedback + animations (unchanged behaviour) */
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--deep);color:#fff;padding:8px 8px 8px 16px;border-radius:12px;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none;display:flex;gap:12px;align-items:center;z-index:100;box-shadow:0 10px 30px #0004}
 .toast.on{opacity:1;pointer-events:auto}
-.toast button{background:#fff;color:var(--band);border:0;border-radius:6px;font:600 14px "Red Hat Text",system-ui,sans-serif;padding:8px 12px;min-height:36px;cursor:pointer}
+.toast button{background:#fff;color:var(--deep);border:0;border-radius:6px;font:600 14px var(--sans);padding:8px 12px;min-height:36px;cursor:pointer}
 .toast:not(:has(button)){padding:10px 16px}
-.card{position:relative}
-.card.flying{z-index:60;pointer-events:none;box-shadow:0 18px 40px #0b1f4b55}
-.stamp{position:absolute;top:50%;left:50%;font:800 30px/1 "Red Hat Display",system-ui,sans-serif;padding:8px 18px;border:4px solid currentColor;border-radius:10px;background:color-mix(in srgb,var(--panel) 85%,transparent);opacity:0;pointer-events:none;white-space:nowrap;z-index:2}
-.st-planned{color:#3b4fd8}.st-applied{color:#0b7fc7}.st-open{color:var(--ok)}.st-earned{color:var(--mag)}.st-closed{color:var(--mute)}.st-denied{color:#d0103a}
-.coin{position:fixed;z-index:70;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3,#0000 45%),#f2b84b;border:2px solid #b07a12;color:#7a5208;font:800 14px/22px "Red Hat Display",system-ui,sans-serif;text-align:center;pointer-events:none}
-.coin.m{background:radial-gradient(circle at 35% 30%,#fff5,#0000 45%),var(--mag);border-color:#8a0a3a;color:#fff}
-.mint{position:absolute;inset:0;z-index:3;pointer-events:none;border-radius:12px;background:color-mix(in srgb,var(--panel) 55%,transparent)}
-.printer{position:absolute;top:-16px;left:6%;width:88%;height:30px;border-radius:9px;background:linear-gradient(#2a3a66,#111b38);box-shadow:0 6px 14px #0006,inset 0 1px 0 #ffffff30;z-index:2}
+.card.flying{z-index:60;pointer-events:none;box-shadow:0 18px 40px #123d2e55}
+.stamp{position:absolute;top:50%;left:50%;font:700 30px/1 var(--serif);padding:8px 18px;border:3px solid currentColor;border-radius:10px;background:color-mix(in srgb,var(--sheet) 88%,transparent);opacity:0;pointer-events:none;white-space:nowrap;z-index:2}
+.st-planned{color:#2f5fb3}.st-applied{color:#1d7ea8}.st-open{color:var(--green)}.st-earned{color:var(--gold)}.st-closed{color:var(--mute)}.st-denied{color:var(--brick)}
+.coin{position:fixed;z-index:70;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff3,#0000 45%),#e3b65c;border:2px solid #8f6410;color:#5e420a;font:700 14px/22px var(--serif);text-align:center;pointer-events:none}
+.coin.m{background:radial-gradient(circle at 35% 30%,#fff5,#0000 45%),#74d1a3;border-color:#1e6b4f;color:#123d2e}
+.mint{position:absolute;inset:0;z-index:3;pointer-events:none;border-radius:14px;background:color-mix(in srgb,var(--sheet) 55%,transparent)}
+.printer{position:absolute;top:-16px;left:6%;width:88%;height:30px;border-radius:9px;background:linear-gradient(#24503f,#0f2a1f);box-shadow:0 6px 14px #0006,inset 0 1px 0 #ffffff30;z-index:2}
 .printer::after{content:"";position:absolute;bottom:7px;left:7%;right:7%;height:4px;border-radius:2px;background:#000}
-.printer i{position:absolute;top:7px;right:12px;width:7px;height:7px;border-radius:50%;background:#4fd39a;box-shadow:0 0 8px #4fd39a}
-.printer b{position:absolute;top:4px;left:12px;color:#9fb0dd;font:700 11px "Red Hat Text",system-ui,sans-serif}
-.tray{position:absolute;left:0;right:0;top:10px;bottom:0;overflow:hidden;border-radius:0 0 12px 12px}
-.bill{position:absolute;left:50%;width:min(78%,240px);height:44px;margin-left:calc(min(78%,240px)/-2);border-radius:4px;background:linear-gradient(135deg,#d6efd9,#9fd3a9 55%,#c4e8ca);border:2px solid #2f6b3d;box-shadow:inset 0 0 0 4px #ffffff55,inset 0 0 0 6px #2f6b3d33,0 3px 6px #0003;color:#1f4d2b;font:800 17px/40px "Red Hat Display",system-ui,sans-serif;display:flex;justify-content:space-between;padding:0 12px}
+.printer i{position:absolute;top:7px;right:12px;width:7px;height:7px;border-radius:50%;background:#74d1a3;box-shadow:0 0 8px #74d1a3}
+.printer b{position:absolute;top:4px;left:12px;color:#9cc5b3;font:600 11px var(--sans)}
+.tray{position:absolute;left:0;right:0;top:10px;bottom:0;overflow:hidden;border-radius:0 0 14px 14px}
+.bill{position:absolute;left:50%;width:min(78%,240px);height:44px;margin-left:calc(min(78%,240px)/-2);border-radius:4px;background:linear-gradient(135deg,#d6efd9,#9fd3a9 55%,#c4e8ca);border:2px solid #2f6b3d;box-shadow:inset 0 0 0 4px #ffffff55,inset 0 0 0 6px #2f6b3d33,0 3px 6px #0003;color:#1f4d2b;font:700 17px/40px var(--serif);display:flex;justify-content:space-between;padding:0 12px}
 .bill::before{content:"$";position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px;border-radius:50%;border:2px solid #2f6b3d;background:#e8f6ea;text-align:center;font-size:18px;line-height:26px}
 .bill.fall{position:fixed;z-index:72;top:0;margin:0;width:130px;left:0;pointer-events:none}
 .paid{position:fixed;left:50%;top:42%;z-index:80;width:0;height:0;pointer-events:none}
-.paid .rays{position:absolute;left:-230px;top:-230px;width:460px;height:460px;border-radius:50%;background:repeating-conic-gradient(#f2b84b66 0 9deg,#0000 9deg 18deg);-webkit-mask:radial-gradient(#000 25%,#0000 68%);mask:radial-gradient(#000 25%,#0000 68%)}
-.paid .big{position:absolute;left:-80px;top:-80px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff6c9,#f7cf5c 45%,#e0a52a);border:7px solid #a8720e;color:#6e4806;font:800 112px/146px "Red Hat Display",system-ui,sans-serif;text-align:center;box-shadow:0 0 0 14px #f2b84b40,0 24px 60px #0007,inset 0 -8px 0 #0002}
-.paid .msg{position:absolute;left:-200px;width:400px;top:96px;text-align:center;color:#fff;font:800 40px/1.05 "Red Hat Display",system-ui,sans-serif;text-shadow:0 3px 0 #0b1f4b,0 10px 30px #000a}
-.paid .msg span{display:block;color:#ff4d8d;font-size:52px;margin-top:4px}
-.badge{display:inline-block;min-width:22px;padding:0 6px;margin-left:6px;border-radius:11px;background:var(--mag);color:#fff;font-size:13px;line-height:22px;text-align:center}
-.amtw{text-align:right;flex:none}.amtw small{display:block;color:var(--mute);font-size:13px;margin-top:2px}
-.tag{display:inline-block;margin-top:6px;margin-left:4px;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;background:var(--chip);color:var(--mute)}.tag.new{background:var(--mag);color:#fff}
-.qual{margin:0;padding:8px 12px;border-radius:8px;font-size:14px;font-weight:600;background:var(--chip)}.qual.yes{background:var(--oksoft);color:var(--ok)}.qual.no{background:var(--warnsoft);color:var(--warn)}
-.qual.yes::before{content:"✓ "}
-.lbl{margin:4px 0 -2px;font:700 13px "Red Hat Text",system-ui,sans-serif;color:var(--mute)}
-.steps{margin:0;padding:0;list-style:none;counter-reset:s;display:grid;gap:8px}
-.steps li{counter-increment:s;display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;font-size:15px;line-height:1.45}
-.steps li::before{content:counter(s);width:22px;height:22px;border-radius:50%;background:var(--band);color:#fff;font:700 12px/22px "Red Hat Display",system-ui,sans-serif;text-align:center;margin-top:1px}
-:root[data-theme=dark] .steps li::before{background:#2c4590}
-abbr[title]{text-decoration:underline dotted;text-underline-offset:3px;cursor:help}
-.facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px;margin:2px 0 0;padding:12px 0 0;border-top:1px solid var(--line)}
-.facts dt{font-size:12px;color:var(--mute);font-weight:600}.facts dd{margin:1px 0 0;font-size:14px}
-.facts .muted{color:var(--mute)}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px;background:var(--mute)}.dot.o5{background:var(--ok)}.dot.o3{background:var(--warn)}.dot.o1{background:var(--mag)}
-.vfy{margin:-4px 0 0;font-size:13px;color:var(--ok);font-weight:600}.vfy::before{content:"✓ ";}
-.heads{margin:0;font-size:14px;padding:8px 12px;border-left:3px solid var(--warn);background:var(--warnsoft);border-radius:0 8px 8px 0}
-.go{font-weight:600;color:var(--ink)!important}
-.card.inel .steps,.card.inel .facts{opacity:.8}
-.more{border-top:1px solid var(--line);padding-top:8px}
-.more summary{cursor:pointer;font-weight:600;font-size:15px;min-height:36px;display:flex;align-items:center;gap:6px;list-style:none}
-.more summary::-webkit-details-marker{display:none}
-.more summary::before{content:"";width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
-.more[open] summary::before{transform:rotate(45deg)}
-.more h4{font:700 15px "Red Hat Display",system-ui,sans-serif;margin:12px 0 6px}
-.mrow{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:2px 10px;font-size:14px;margin:6px 0}
-.mrow em{font-style:normal;text-align:right;white-space:nowrap;color:var(--mute)}
-.mrow .prog{grid-column:1/-1;margin:0;height:6px}
-.mrow .prog i.bad{background:var(--warn)}
-.why2{margin:4px 0;padding-left:18px;font-size:14px}
-.chip.o5{background:var(--oksoft);color:var(--ok);font-weight:600}.chip.o3{background:var(--warnsoft);color:var(--warn);font-weight:600}.chip.o1{background:var(--magsoft);color:var(--mag);font-weight:600}
-.chexrow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) auto;gap:10px;align-items:end}
-.tbl{width:100%;border-collapse:collapse;font-size:15px}
-.tbl th{text-align:left;font-size:13px;color:var(--mute);font-weight:600;padding:8px;border-bottom:2px solid var(--line)}
-.tbl td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
-.tbl td.n{text-align:right;white-space:nowrap}
-.scroll{overflow-x:auto}
-@media(max-width:700px){.chexrow{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:600px){nav{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}nav button{flex:none}
-.tbl{font-size:14px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--line)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8.5em;text-align:start}.stack td.n{text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:8em;margin-inline-start:-8.5em;color:var(--mute);font-size:13px}}
-@media(prefers-reduced-motion:reduce){.toast{transition:none}}
-@media(max-width:800px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.dates{grid-template-columns:repeat(2,minmax(0,1fr))}.cols{grid-template-columns:minmax(0,1fr)}}
-@media(max-width:600px){.ev{grid-template-columns:minmax(0,1fr)}.ev{gap:2px}}
+.paid .rays{position:absolute;left:-230px;top:-230px;width:460px;height:460px;border-radius:50%;background:repeating-conic-gradient(#e3b65c66 0 9deg,#0000 9deg 18deg);-webkit-mask:radial-gradient(#000 25%,#0000 68%);mask:radial-gradient(#000 25%,#0000 68%)}
+.paid .big{position:absolute;left:-80px;top:-80px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff6c9,#f7cf5c 45%,#e0a52a);border:7px solid #a8720e;color:#6e4806;font:700 112px/146px var(--serif);text-align:center;box-shadow:0 0 0 14px #f2b84b40,0 24px 60px #0007,inset 0 -8px 0 #0002}
+.paid .msg{position:absolute;left:-200px;width:400px;top:96px;text-align:center;color:#fff;font:700 40px/1.05 var(--serif);text-shadow:0 3px 0 #123d2e,0 10px 30px #000a}
+.paid .msg span{display:block;color:#f7cf5c;font-size:52px;margin-top:4px}
+@media(prefers-reduced-motion:reduce){.toast,.card,.more summary::before{transition:none}}
+@media(max-width:1080px){.findwrap{grid-template-columns:minmax(0,1fr)}
+ .side{position:static;max-height:none;overflow:visible;padding:0;background:var(--sheet);border:1px solid var(--rule);border-radius:14px}
+ .side>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;padding:14px 18px;min-height:56px;cursor:pointer;list-style:none;font:600 17px/1.3 var(--serif)}
+ .side>summary::-webkit-details-marker{display:none}
+ .side>summary span{grid-column:1;font:400 14px/1.4 var(--sans);color:var(--mute)}
+ .side>summary::after{content:"";grid-column:2;grid-row:1/span 2;align-self:center;width:9px;height:9px;border-right:2px solid var(--mute);border-bottom:2px solid var(--mute);transform:rotate(45deg) translateY(-3px);transition:transform .15s}
+ .side[open]>summary::after{transform:rotate(-135deg)}
+ .side[open]>summary{border-bottom:1px solid var(--rule)}
+ .side .box{border:0;border-radius:0;border-bottom:1px solid var(--rule)}.side .box:last-child{border-bottom:0}
+ .stages{grid-template-columns:repeat(3,minmax(0,1fr))}.stage:nth-child(3){border-right:0}.stage:nth-child(-n+3){border-bottom:1px solid var(--rule)}}
+@media(max-width:820px){.note-hero{grid-template-columns:minmax(0,1fr)}.guil{right:-200px;top:30%}.mast{flex-wrap:wrap;gap:0;padding-top:10px}.mast nav{flex:1 1 100%;justify-content:flex-start;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 -8px}nav button{flex:none}
+ .cols{grid-template-columns:minmax(0,1fr)}.dates{grid-template-columns:repeat(2,minmax(0,1fr))}.toolbar{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.toolbar input{grid-column:1/-1}}
+@media(max-width:600px){header{padding-top:16px}.hero-amt{font-size:64px}.ev{grid-template-columns:52px minmax(0,1fr);gap:12px}.ev .when{grid-column:2}.facts{gap:10px 14px}
+ .tbl{font-size:14px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px;border-bottom:1px solid var(--rule)}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8.5em;text-align:start}.stack td.n{text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:8em;margin-inline-start:-8.5em;color:var(--mute);font-size:13px}}
 </style>
 </head>
 <body>
-<header>
- <div class="wrap">
-  <h1>Checking bonus tracker</h1>
-  <p class="sub">Every current checking bonus, filtered to the ones you qualify for, with requirements, safe-to-close dates and when you can churn each one again.</p>
-  <p class="sub" id="fresh" style="margin-top:-14px;font-size:14px">Loading the latest offers…</p>
-  <div class="stats" id="stats"></div>
- </div>
-</header>
-<div class="navband"><div class="wrap"><nav role="tablist" id="tabs">
+<div class="navband"><div class="wrap mast">
+ <a class="brand" href="#find" data-tab="find" aria-label="Bonus Tracker home"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="15" fill="none" stroke="currentColor" stroke-width="1.2" opacity=".5"/><path id="rose" fill="none" stroke="currentColor" stroke-width="1"/><text x="16" y="21.5" text-anchor="middle" font-family="Bodoni Moda,Georgia,serif" font-size="15" font-weight="700" fill="currentColor">$</text></svg>Bonus Tracker</a>
+ <nav role="tablist" id="tabs" aria-label="Sections">
   <button role="tab" data-tab="find" aria-selected="true">Find offers</button>
   <button role="tab" data-tab="mine" aria-selected="false">My accounts</button>
-  <button role="tab" data-tab="cal" aria-selected="false">Upcoming dates</button>
-  <button role="tab" data-tab="guide" aria-selected="false">DD &amp; ChexSystems</button>
-  <button role="tab" data-tab="data" aria-selected="false">Add offer &amp; data</button>
+  <button role="tab" data-tab="cal" aria-selected="false">Dates</button>
+  <button role="tab" data-tab="guide" aria-selected="false">Deposits &amp; ChexSystems</button>
+  <button role="tab" data-tab="data" aria-selected="false">Add &amp; back up</button>
  </nav></div></div>
+<header class="wrap"><section class="note-hero" id="stats" aria-live="polite"></section></header>
 <script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
 <main class="wrap" id="view"></main>
 <div class="toast" id="toast" role="status"></div>
@@ -310,7 +385,7 @@ const DOC_SENS="https://www.doctorofcredit.com/banks-credit-unions-chexsystems-i
 const STATUS=[["","Not started"],["planned","Planning to apply"],["applied","Applied"],["open","Open — working on it"],["earned","Bonus received"],["closed","Closed"],["denied","Denied"]];
 const DEF_KEEP=180,DEF_CD=12;
 let S={profile:{state:"",ddCap:3000,cash:5000,mil:false},track:{},custom:[],v:1};
-let META=null,FIRST_RUN="";const STALE_DAYS=7;
+let META=null,FIRST_RUN="",SIDE_OPEN=false,STAGE="";const STALE_DAYS=7;
 let tab="find",F={q:"",type:"",sort:"amt",inel:false,nodd:false,chexok:false,ddok:false},db=null,ref=null,saveT=null;
 const $=s=>document.querySelector(s);
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -377,35 +452,45 @@ function odds(o){const P=chexPts();if(!P)return null;const x=CHX[CHK(o)],why=[],
  if(x.n)why.push(x.n);
  return{p:Math.max(5,Math.min(97,p)),why}}
 const oddsLbl=p=>p>=80?["Likely","o5"]:p>=60?["Good","o5"]:p>=40?["Fair","o3"]:p>=20?["Risky","o1"]:["Unlikely","o1"];
-const chexLbl=o=>{const x=CHX[CHK(o)];if(!x)return["Chex: no data",""];if(x.p==="no")return["Doesn't pull Chex","g"];return{low:["Chex: not sensitive","g"],mixed:["Chex: mixed reports","w"],high:["Chex sensitive","w"],"?":[x.p==="yes"?"Pulls Chex · sensitivity unknown":"Chex: limited data",""]}[x.s]};
-const ddLbl=o=>{const d=DDX[DDK(o)];if(!d)return null;const alt=d.m.filter(([n,w,t])=>!/payroll/i.test(n)&&(t===0||w/t>=.8)).length;return d.lvl==="strict"?["DD: strict — payroll safest","w"]:[`DD: ${d.lvl} · ${alt} workaround${alt===1?"":"s"}`,"g"]};
+const chexLbl=o=>{const x=CHX[CHK(o)];if(!x)return["Chex: no data",""];if(x.p==="no")return["Doesn't pull Chex","g"];return{low:["Chex: not sensitive","g"],mixed:["Chex: mixed reports","w"],high:["Chex sensitive","w"],"?":[x.p==="yes"?"Pulls Chex, sensitivity unknown":"Chex: limited data",""]}[x.s]};
+const ddLbl=o=>{const d=DDX[DDK(o)];if(!d)return null;const alt=d.m.filter(([n,w,t])=>!/payroll/i.test(n)&&(t===0||w/t>=.8)).length;return d.lvl==="strict"?["DD: strict — payroll safest","w"]:[`DD: ${d.lvl}, ${alt} workaround${alt===1?"":"s"}`,"g"]};
 function ddBlock(o){const d=DDX[DDK(o)];if(!d)return `<h4>Direct deposit workarounds</h4><p class="note">No community data for this bank in the app yet. Check <a href="${DOC_DD}" target="_blank" rel="noopener">Doctor of Credit's direct deposit list</a>.</p>`;
  const rows=[...d.m].sort((a,b)=>(b[2]?b[1]/b[2]:.999)-(a[2]?a[1]/a[2]:.999)||b[2]-a[2]).map(([n,w,t])=>{const r=t?w/t:null;
-  return `<div class="mrow"><span>${esc(n)}</span><em>${t?Math.round(r*100)+"% · "+w+"/"+t:"reported working"}</em><div class="prog"><i class="${r!=null&&r<.75?"bad":""}" style="width:${t?Math.max(4,r*100):100}%;${t?"":"opacity:.35"}"></i></div></div>`}).join("");
- return `<h4>Direct deposit workarounds · ${esc(d.lvl)}</h4><p class="note">${esc(d.ov)} · updated ${esc(d.upd)}</p>${rows}<p class="note"><b>Doesn't work / watch out:</b> ${esc(d.fail)} <a href="${esc(d.url)}" target="_blank" rel="noopener">Data points ↗</a></p>`}
+  return `<div class="mrow"><span>${esc(n)}</span><em>${t?w+" of "+t+" worked":"reported working"}</em><div class="prog"><i class="${r!=null&&r<.75?"bad":""}" style="width:${t?Math.max(4,r*100):100}%;${t?"":"opacity:.35"}"></i></div></div>`}).join("");
+ return `<h4>Paycheck alternatives at this bank: ${esc(d.lvl)}</h4><p class="note">${esc(d.ov)}. Updated ${esc(d.upd)}.</p>${rows}<p class="note"><b>Doesn't work:</b> ${esc(d.fail)} <a href="${esc(d.url)}" target="_blank" rel="noopener">Data points ↗</a></p>`}
 function chexBlock(o){const x=CHX[CHK(o)],od=odds(o);
  let h=`<h4>ChexSystems</h4>`;
  if(!x)h+=`<p class="note">No reader reports for this bank yet.</p>`;
- else h+=`<p class="note">${x.p==="no"?"Doesn't pull ChexSystems":x.p==="yes"?"Pulls ChexSystems":x.p==="mixed"?"Mixed reports on pulling ChexSystems":"Unknown whether it pulls ChexSystems"} · ${({low:"not inquiry-sensitive",mixed:"mixed sensitivity reports",high:"inquiry-sensitive","?":"sensitivity not reported"})[x.s]}</p>`;
+ else h+=`<p class="note">${x.p==="no"?"Doesn't pull ChexSystems":x.p==="yes"?"Pulls ChexSystems":x.p==="mixed"?"Mixed reports on pulling ChexSystems":"Unknown whether it pulls ChexSystems"}, and ${({low:"isn't bothered by many recent applications",mixed:"reports are mixed on how many recent applications it allows",high:"is known to deny people with many recent applications","?":"there's no data on how strict it is"})[x.s]}.</p>`;
  if(od){const [l]=oddsLbl(od.p);h+=`<p><b>Your approval odds: ${l} (~${od.p}%)</b></p><ul class="why2">${od.why.map(w=>`<li>${esc(w)}</li>`).join("")}</ul>`}
  else h+=`<p class="note">Enter your ChexSystems inquiry counts above to see your odds.</p>`;
- return h+`<p class="note"><a href="${DOC_SENS}" target="_blank" rel="noopener">Sensitivity reports ↗</a> · <a href="${DOC_PULL}" target="_blank" rel="noopener">Who pulls Chex ↗</a></p>`}
+ return h+`<p class="note"><a href="${DOC_SENS}" target="_blank" rel="noopener">Sensitivity reports ↗</a> and <a href="${DOC_PULL}" target="_blank" rel="noopener">Who pulls Chex ↗</a></p>`}
 function fillChex(){const c={},now_=today();for(const [k,m] of WIN)c[k]=0;
  for(const o of all()){const t=S.track[o.id];if(!t)continue;const d=t.applied||t.opened;if(!d)continue;const x=CHX[CHK(o)];if(x&&x.p==="no")continue;
   const age=(D(now_)-D(d))/(864e5*30.44);for(const [k,m] of WIN)if(age<=m)c[k]++}
  return c}
 function save(){try{localStorage.setItem("cbt",JSON.stringify(S))}catch(e){}
  clearTimeout(saveT);saveT=setTimeout(push,600)}
+let GUIL="";
+function spiro(R,r,d,turns,cx,cy,s){let p="";const N=turns*180;for(let i=0;i<=N;i++){const t=i/N*turns*2*Math.PI,x=(R-r)*Math.cos(t)+d*Math.cos((R-r)/r*t),y=(R-r)*Math.sin(t)-d*Math.sin((R-r)/r*t);p+=(i?"L":"M")+(cx+x*s).toFixed(1)+" "+(cy+y*s).toFixed(1)}return p}
+function guilloche(){if(GUIL)return GUIL;const paths=[[96,42,60,21],[96,27,48,9],[80,33,56,11],[60,22,20,11]].map(([R,r,d,t],i)=>`<path d="${spiro(R,r,d,t,260,260,i===3?1.9:1.75)}" stroke-width="${i===3?.9:.55}"/>`).join("");
+ const rings=[218,224,230].map(r=>`<circle cx="260" cy="260" r="${r}" stroke-width=".6"/>`).join("");
+ GUIL=`<svg viewBox="0 0 520 520" fill="none" stroke="currentColor" aria-hidden="true">${rings}${paths}</svg>`;return GUIL}
 function stats(){
- const list=all();let pot=0,n=0,prog=0,earn=0;const y=today().slice(0,4);
+ const list=all();let pot=0,n=0,prog=0,earn=0,np=0,ne=0;const y=today().slice(0,4);
  for(const o of list){const t=S.track[o.id]||{};if(!t.status&&!elig(o).length&&S.profile.state){pot+=o.amt;n++}
-  if(["applied","open"].includes(t.status))prog+=o.amt;
-  if(t.bonusDate&&t.bonusDate.startsWith(y))earn+=+(t.got??o.amt)}
+  if(["applied","open"].includes(t.status)){prog+=o.amt;np++}
+  if(t.bonusDate&&t.bonusDate.startsWith(y)){earn+=+(t.got??o.amt);ne++}}
  const ev=events().filter(e=>e.d>=today())[0];
- $("#stats").innerHTML=`<div class="stat hot"><b>${money(pot)}</b><span>${n} offers you qualify for</span></div>
- <div class="stat"><b>${money(prog)}</b><span>Applied or in progress</span></div>
- <div class="stat"><b>${money(earn)}</b><span>Bonuses received in ${y}</span></div>
- <div class="stat"><b>${ev?(ev.d.slice(0,4)===y?fmt(ev.d).replace(/, \d{4}/,""):fmt(ev.d)):"—"}</b><span>${ev?esc(ev.what+" · "+ev.o.b):"No upcoming dates"}</span></div>`}
+ const lead=S.profile.state?`in bonuses from <b>${n} offers</b> you qualify for in ${esc(S.profile.state)} right now.`:`in bonuses waiting. Choose your state below to see which ones are yours.`;
+ const fresh=$("#fresh")?.textContent||"";
+ $("#stats").innerHTML=`<div class="guil">${guilloche()}</div><div class="guil l">${guilloche()}</div>
+ <div class="hero-main"><span class="hero-amt"><sup>$</sup>${Math.round(S.profile.state?pot:all().reduce((s,o)=>s+(elig(o).length?0:o.amt),0)).toLocaleString("en-US")}</span><p>${lead}</p><p class="fresh" id="fresh">${esc(fresh||"Loading the latest offers…")}</p></div>
+ <div class="ledger">
+  <div><span>Working on now</span><b>${money(prog)}</b><small>${np?`${np} account${np===1?"":"s"} applied for or open`:"Nothing in progress yet"}</small></div>
+  <div><span>Earned in ${y}</span><b>${money(earn)}</b><small>${ne?`${ne} bonus${ne===1?"":"es"} paid`:"Your first bonus will show here"}</small></div>
+  <div><span>Next date</span><b>${ev?(ev.d.slice(0,4)===y?fmt(ev.d).replace(/, \d{4}/,""):fmt(ev.d)):"—"}</b><small>${ev?esc(ev.what+" at "+ev.o.b):"Deadlines appear once you open an account"}</small></div>
+ </div>`;freshLine()}
 const OPEN=new Set();
 const DDW=`<abbr title="Money your employer (or Social Security, a pension, etc.) sends straight into the account automatically — usually your paycheck">direct deposits</abbr>`;
 function steps(o){const L=[],win=o.win&&o.win<365?` within ${o.win} days`:"";
@@ -427,12 +512,12 @@ function facts(o){const od=odds(o),cl=chexLbl(o),dl=ddLbl(o),F=[];
  F.push(["Where",o.st==="ALL"?"Anywhere in the US":o.st==="?"?"Check the offer page":o.st.length>6?`<span title="${esc(o.st.join(", "))}">${o.st.length} states${S.profile.state&&o.st.includes(S.profile.state)?" incl. "+esc(S.profile.state):""}</span>`:esc(o.st.join(", "))]);
  F.push(["Offer ends",o.exp?fmt(o.exp):"No end date listed"]);
  F.push(["Earn it again",o.cd===-1?"Once per person":o.cd!=null?`Every ${o.cd} months`:"Not stated (often 1–2 yrs)"]);
- F.push(["Approval odds",od?`<span class="dot ${oddsLbl(od.p)[1]}"></span>${oddsLbl(od.p)[0]} · ~${od.p}%`:`<span class="muted">${cl[0].replace(/^Chex: /,"ChexSystems: ")}</span>`]);
+ F.push(["Approval odds",od?`<span class="dot ${oddsLbl(od.p)[1]}"></span>${oddsLbl(od.p)[0]}, about ${od.p}%`:`<span class="muted">${cl[0].replace(/^Chex: /,"ChexSystems: ")}</span>`]);
  if(mreq(o)&&dl)F.push(["Paycheck needed?",/strict/.test(dl[0])?"Yes — use a real paycheck":"No — bank transfers usually count"]);
  return `<dl class="facts">${F.map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>`}
 const hostOf=u=>{try{return new URL(u).hostname.replace(/^www\./,"")}catch(e){return""}};
 function verifyLine(o){const c=o.check;if(!c||c.status!=="confirmed")return"";
- return `<p class="vfy">${money(o.amt)} bonus confirmed on ${esc(hostOf(c.url))}${c.on?` · checked ${fmt(c.on).replace(/, \d{4}$/,"")}`:""}</p>`}
+ return `<p class="vfy">${money(o.amt)} confirmed on ${esc(hostOf(c.url))}${c.on?` on ${fmt(c.on).replace(/, \d{4}$/,"")}`:""}</p>`}
 function headsUp(o){const H=[],c=o.check||{};if(o.note)H.push(esc(o.note));
  if(c.status==="differs")H.push(`${esc(o.b)}'s own offer page mentions ${c.amts.map(money).join(", ")} — not ${money(o.amt)}. The offer may have changed, or the bank lists a different tier; check before applying.`);
  if(c.status==="bad-link")H.push(`The link the bonus sites gave doesn't go to ${esc(o.b)}'s website${c.why?` (${esc(c.why)})`:""}, so it's been removed. Use the source article to find the offer.`);
@@ -450,23 +535,23 @@ function linkFor(o){const ok=u=>/^https:\/\//.test(u||"");
 function card(o){const r=elig(o),lk=linkFor(o);
  const tags=[];if(o.changed&&-days(o.changed)<=7&&o.prevAmt)tags.push(`<span class="tag">was ${money(o.prevAmt)}</span>`);
  if(o.first&&-days(o.first)<=3&&META&&o.first>FIRST_RUN)tags.push(`<span class="tag new">New</span>`);
- const qual=r.length?`<p class="qual no">${r.map(esc).join(" · ")}</p>`:S.profile.state?`<p class="qual yes">You qualify</p>`:`<p class="qual">Choose your state above to check if you qualify</p>`;
+ const qual=r.length?`<p class="qual no">${r.map(esc).join(". ")}</p>`:S.profile.state?`<p class="qual yes">You qualify</p>`:`<p class="qual">Choose your state above to check if you qualify</p>`;
  return `<article class="card ${r.length?"inel":""}" data-card="${esc(o.id)}">
- <div class="top"><div><h3>${esc(o.b)}</h3><small>${esc(o.a||"Checking")}${o.custom?" · added by you":""}</small></div><div class="amtw"><div class="amt">${money(o.amt)}</div><small>bonus</small>${tags.join("")}</div></div>
+ <div class="top"><div><h3>${esc(o.b)}</h3><small>${esc(o.a||"Checking")}${o.custom?", added by you":""}</small></div><div class="amtw"><div class="amt">${money(o.amt)}</div><small>bonus</small>${tags.join("")}</div></div>
  ${qual}${verifyLine(o)}
  <h4 class="lbl">How to earn it</h4>${steps(o)}
  ${facts(o)}
  ${headsUp(o)}
  <details class="more" data-det="${esc(o.id)}"${OPEN.has(o.id)?" open":""}><summary>More details: paycheck alternatives &amp; approval data</summary>${o.req?`<h4>Offer summary</h4><p class="note">${esc(o.req)}</p>`:""}${checkNote(o)}${ddBlock(o)}${chexBlock(o)}</details>
  <div class="foot">${selStatus(o)}${lk?`<a class="go" href="${esc(lk[0])}" target="_blank" rel="noopener">${lk[1]}</a>`:""}</div></article>`}
-function profBar(){const p=S.profile;
- return `<div class="panel prof"><label>Your state<select data-act="prof" data-k="state"><option value="">Choose…</option>${STATES.map(s=>`<option${s===p.state?" selected":""}>${s}</option>`).join("")}</select></label>
- <label>Direct deposit you can route each month<input type="number" inputmode="numeric" min="0" step="100" data-act="prof" data-k="ddCap" value="${+p.ddCap||0}"></label>
- <label>Cash you can park for bonuses<input type="number" inputmode="numeric" min="0" step="500" data-act="prof" data-k="cash" value="${+p.cash||0}"></label>
- <label class="check"><input type="checkbox" data-act="prof" data-k="mil"${p.mil?" checked":""}> Military / Navy Federal eligible</label>
- <label class="check"><input type="checkbox" data-act="prof" data-k="sound"${p.sound!==false?" checked":""}> Sound effects</label></div>
- ${chexPanel()}
- <p class="note">Monthly DD in use by accounts you're still working on: <b>${money(used())}</b> of ${money(p.ddCap)}. Paychecks can be split across several banks at once.</p>`}
+function profBar(){const p=S.profile,u=used(),cap=+p.ddCap||0;
+ return `<section class="box"><h3>About you</h3><p class="note">Used to hide offers you can't get.</p><div class="prof">
+ <label>State you live in<select data-act="prof" data-k="state"><option value="">Choose your state</option>${STATES.map(s=>`<option${s===p.state?" selected":""}>${s}</option>`).join("")}</select></label>
+ <label>Paycheck you can send to new banks, per month<input type="number" inputmode="numeric" min="0" step="100" data-act="prof" data-k="ddCap" value="${cap}"></label>
+ <div class="meter note">${u?`${money(u)} of it is already going to accounts you're working on.`:"None of it is committed yet. You can split one paycheck across several banks."}<div class="prog"><i style="width:${cap?Math.min(100,u/cap*100):0}%"></i></div></div>
+ <label>Cash you can leave in an account<input type="number" inputmode="numeric" min="0" step="500" data-act="prof" data-k="cash" value="${+p.cash||0}"></label>
+ <label class="check"><input type="checkbox" data-act="prof" data-k="mil"${p.mil?" checked":""}> I can join Navy Federal (military or family)</label>
+ </div></section>`}
 // ---- read a ChexSystems report (PDF text in-browser; scans/photos via Claude) ----
 const PDFJS="https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/legacy/build/";
 let pdfLib=null,RV=null,CHMSG="",CHBUSY=false;
@@ -516,28 +601,29 @@ function reviewHtml(){if(!RV||!RV.inq.length)return "";const c=countsFrom(RV.inq
  return `<div class="panel" style="margin-top:12px;background:var(--bg)"><h4 style="margin:0 0 4px">Inquiries found in ${esc(RV.file)}</h4>${RV.warn?`<p class="why">${esc(RV.warn)}</p>`:""}${RV.score?`<p class="note">ChexSystems score on file: <b>${RV.score}</b></p>`:""}
  <div class="scroll" style="max-height:320px;overflow-y:auto"><table class="tbl"><thead><tr><th>Count it</th><th>Inquirer</th><th>Date</th><th>Seen by banks?</th></tr></thead><tbody>
  ${RV.inq.map((q,i)=>`<tr><td><input type="checkbox" data-act="rvinc" data-i="${i}" aria-label="Count ${esc(q.name)}"${q.inc?" checked":""} style="width:20px;min-height:20px;margin:0;accent-color:var(--mag)"></td><td>${esc(q.name)}</td><td class="n">${fmt(q.date)}${ageMo(q.date)>24?' <span class="note">(over 2 yrs)</span>':""}</td><td>${q.vis?"Yes":'<span class="note">Only you</span>'}</td></tr>`).join("")}</tbody></table></div>
- <p style="margin:12px 0 6px"><b>Counts:</b> ${WIN.map(([k,m])=>`${c[k]} in ${m===1?"1 month":m+" months"}`).join(" · ")}</p>
+ <p style="margin:12px 0 6px"><b>Counts:</b> ${WIN.map(([k,m])=>`${c[k]} in ${m===1?"1 month":m+" months"}`).join(", ")}</p>
  <div class="bar" style="margin:0"><button class="btn" data-act="rvapply">Use these counts</button><button class="btn ghost" data-act="rvcancel">Discard</button></div></div>`}
-function chexPanel(){const c=S.profile.chex||{},auto=S.profile.chexAuto&&S.profile.chexInq;
- return `<div class="panel" style="margin-bottom:16px"><h3 style="margin:0 0 4px;font-size:18px">Your ChexSystems inquiries</h3>
- <p class="note" style="margin:0 0 10px">Upload your ChexSystems Consumer Disclosure Report and the app counts the inquiries for you, or type the counts yourself (each window includes the shorter ones). Every offer then shows your approval odds, based on Doctor of Credit reader reports. Get your free report at <a href="https://www.chexsystems.com" target="_blank" rel="noopener">chexsystems.com</a>.</p>
- <div class="chexdrop bar" style="margin:0 0 12px;padding:12px;border:2px dashed var(--line);border-radius:10px">
+function chexPanel(wide){const c=S.profile.chex||{},auto=S.profile.chexAuto&&S.profile.chexInq;
+ return `<section class="${wide?"panel":"box"}"><h3>Your ChexSystems history</h3>
+ <p class="note" style="margin:4px 0 12px">Banks check how many accounts you've applied for recently. Add your report and every offer shows your odds of approval. Get it free at <a href="https://www.chexsystems.com" target="_blank" rel="noopener">chexsystems.com</a>.</p>
+ <div class="chexdrop bar" style="margin:0 0 12px;padding:12px;border:1.5px dashed var(--line);border-radius:10px">
   <label class="btn" style="display:inline-flex;align-items:center;${CHBUSY?"opacity:.6;pointer-events:none":""}">${CHBUSY?"Reading…":"Upload report"}<input type="file" data-act="chexfile" accept=".pdf,application/pdf,image/*,.txt,text/plain" style="position:absolute;width:1px;height:1px;opacity:0"></label>
   <span class="note" style="flex:1 1 240px" id="chexmsg">${esc(CHMSG||(window.claude?"PDF, photo or screenshot — or drop it here. Downloaded PDFs are read in your browser; only inquiry names and dates are saved. Photos and scans are sent to Claude to read.":"Upload the PDF you downloaded from chexsystems.com, or drop it here. It's read in your browser; only inquiry names and dates are saved."))}</span></div>
- <details class="more" style="margin:0 0 12px"><summary>Paste the report text instead</summary><textarea id="chexpaste" placeholder="Paste the Inquiries Viewed By Others section…"></textarea><p><button class="btn ghost" data-act="chexpaste">Read pasted text</button></p></details>
+ <details class="more" style="margin:0 0 12px;border:0;padding:0"><summary>Paste the report text instead</summary><textarea id="chexpaste" placeholder="Paste the Inquiries Viewed By Others section…"></textarea><p><button class="btn ghost" data-act="chexpaste">Read pasted text</button></p></details>
  ${reviewHtml()}
  ${auto?`<p class="note">Counts come from the report you uploaded (${S.profile.chexInq.filter(q=>q.inc).length} inquiries) and update automatically as inquiries age. Editing a number switches to manual.</p>`:""}
- <div class="chexrow">${[["c1","Last month"],["c3","Last 3 months"],["c6","Last 6 months"],["c12","Last 12 months"],["c24","Last 24 months"]].map(([k,l])=>`<label>${l}<input type="number" inputmode="numeric" min="0" data-act="chex" data-k="${k}" value="${c[k]??""}" placeholder="0"></label>`).join("")}
- <button class="btn ghost" data-act="chexfill" title="Counts applications in your tracker at banks that pull ChexSystems">Estimate from my tracker</button></div></div>`}
-function viewGuide(){
+ <p class="note" style="margin:0 0 6px">Or type how many inquiries you have from the last:</p>
+ <div class="chexrow">${[["c1","1 month"],["c3","3 months"],["c6","6 months"],["c12","12 months"],["c24","24 months"]].map(([k,l])=>`<label>${l}<input type="number" inputmode="numeric" min="0" data-act="chex" data-k="${k}" value="${c[k]??""}" placeholder="0"></label>`).join("")}
+ <button class="btn ghost" data-act="chexfill" title="Counts applications in your tracker at banks that pull ChexSystems">Estimate from my tracker</button></div></section>`}
+function viewGuide(){/* wide Chex panel here */
  const L=all().filter(o=>!o.custom).filter((o,i,a)=>a.findIndex(x=>DDK(x)===DDK(o))===i).map(o=>({o,od:odds(o),x:CHX[CHK(o)],d:DDX[DDK(o)]}));
  const rank=v=>v.od?v.od.p:({no:95}[v.x?.p]||({low:85,mixed:65,"?":70,high:50})[v.x?.s]||60);
  L.sort((a,b)=>rank(b)-rank(a)||b.o.amt-a.o.amt);
  const best=d=>{if(!d)return"—";const m=d.m.filter(([n,w,t])=>!/payroll/i.test(n)).sort((a,b)=>(b[2]?b[1]/b[2]:.9)-(a[2]?a[1]/a[2]:.9)||b[2]-a[2])[0];return m?esc(m[0])+(m[2]?` <span class="note">${Math.round(m[1]/m[2]*100)}% of ${m[2]}</span>`:` <span class="note">works</span>`):"—"};
- return `${chexPanel()}
- <div class="cols"><section class="panel"><h2 class="sec">Which transfers count as a direct deposit</h2>
+ return `${chexPanel(1)}
+ <div class="cols" style="margin-top:16px"><section class="panel"><h2 class="sec">Which transfers count as a direct deposit</h2>
  <p class="note">Banks look at how a deposit is coded in the ACH system, not where the money came from. Success rates across all banks combined, from community reports:</p>
- ${DD_ALL.map(([n,r,c])=>`<div class="mrow"><span>${n}</span><em>${r}% · ${c.toLocaleString()}</em><div class="prog"><i style="width:${r}%"></i></div></div>`).join("")}
+ ${DD_ALL.map(([n,r,c])=>`<div class="mrow"><span>${n}</span><em>${r}% of ${c.toLocaleString()}</em><div class="prog"><i style="width:${r}%"></i></div></div>`).join("")}
  <h4>Almost never counts</h4><ul class="why2"><li>Zelle (Citi is the exception)</li><li>ACH pulls initiated from the new bank</li><li>Transfers between your own accounts at the same bank</li><li>Venmo, Cash App and PayPal usually post as P2P (results vary by bank)</li></ul>
  <p class="note">Rates at a specific bank can differ from these overall numbers, so check that bank's breakdown on its offer card, and look for reports from the last 30–60 days before you rely on one. Many banks' terms say only payroll or government benefits count; they can deny or reverse a bonus if a transfer doesn't qualify.</p></section>
  <section class="panel"><h2 class="sec">How ChexSystems affects approval</h2>
@@ -545,7 +631,7 @@ function viewGuide(){
  <p class="note">Strategy many churners use: apply to sensitive banks first while your count is low, and save banks that don't pull Chex (or aren't sensitive) for later.</p></section></div>
  <h2 class="sec">Every bank, ranked by your approval odds</h2>
  <div class="panel scroll"><table class="tbl stack"><thead><tr><th>Bank</th><th>Your odds</th><th>ChexSystems</th><th>DD flexibility</th><th>Best non-payroll method</th><th>Top bonus</th></tr></thead><tbody>
- ${L.map(v=>{const cl=chexLbl(v.o),dl=ddLbl(v.o),ol=v.od?oddsLbl(v.od.p):null;return `<tr><td><b>${esc(v.o.b)}</b></td><td>${ol?`<span class="chip ${ol[1]}">${ol[0]} · ${v.od.p}%</span>`:'<span class="note">enter Chex counts</span>'}</td><td><span class="chip ${cl[1]}">${cl[0]}</span></td><td>${v.d?esc(v.d.lvl):'<span class="note">no data</span>'}</td><td>${best(v.d)}</td><td class="n">${money(Math.max(...all().filter(x=>DDK(x)===DDK(v.o)).map(x=>x.amt)))}</td></tr>`}).join("")}
+ ${L.map(v=>{const cl=chexLbl(v.o),dl=ddLbl(v.o),ol=v.od?oddsLbl(v.od.p):null;return `<tr><td><b>${esc(v.o.b)}</b></td><td>${ol?`<span class="chip ${ol[1]}">${ol[0]}, ${v.od.p}%</span>`:'<span class="note">enter Chex counts</span>'}</td><td><span class="chip ${cl[1]}">${cl[0]}</span></td><td>${v.d?esc(v.d.lvl):'<span class="note">no data</span>'}</td><td>${best(v.d)}</td><td class="n">${money(Math.max(...all().filter(x=>DDK(x)===DDK(v.o)).map(x=>x.amt)))}</td></tr>`}).join("")}
  </tbody></table></div>
  <p class="note">Sources: <a href="${DOC_SENS}" target="_blank" rel="noopener">Doctor of Credit — inquiry-sensitive banks</a> · <a href="${DOC_PULL}" target="_blank" rel="noopener">Doctor of Credit — who pulls ChexSystems</a> · <a href="${DOC_DD}" target="_blank" rel="noopener">Doctor of Credit — what counts as direct deposit</a> · <a href="https://thebonusstack.com/datapoints" target="_blank" rel="noopener">The Bonus Stack data points</a>. Odds are an estimate from crowd-sourced reports, not a guarantee.</p>`}
 function viewFind(){
@@ -559,15 +645,16 @@ function viewFind(){
  if(!F.inel)L=L.filter(x=>!x.r.length);
  const so={amt:(a,b)=>b.o.amt-a.o.amt,easy:(a,b)=>mreq(a.o)-mreq(b.o)||b.o.amt-a.o.amt,exp:(a,b)=>(a.o.exp||"9999").localeCompare(b.o.exp||"9999"),bank:(a,b)=>a.o.b.localeCompare(b.o.b),odds:(a,b)=>((odds(b.o)?.p??0)-(odds(a.o)?.p??0))||b.o.amt-a.o.amt};
  L.sort(so[F.sort]);
- return profBar()+`<div class="bar"><input type="search" placeholder="Search banks" aria-label="Search banks" data-act="f" data-k="q" value="${esc(F.q)}">
+ const p=S.profile,ch=chexPts(),sum=[p.state||"No state yet",p.ddCap?money(p.ddCap)+"/mo paycheck":"",ch?`${chexAt(12)} Chex inquiries in 12 mo`:""].filter(Boolean).join(", ");
+ const wide=matchMedia("(min-width:1081px)").matches,sideOpen=wide||!p.state||SIDE_OPEN;
+ const pill=(k,l)=>`<label class="pill"><input type="checkbox" data-act="f" data-k="${k}"${F[k]?" checked":""}>${l}</label>`;
+ return `<div class="findwrap"><details class="side" id="side"${sideOpen?" open":""}><summary>Your details <span>${esc(sum)}</span></summary>${profBar()}${chexPanel()}</details>
+ <section class="results" aria-label="Offers"><div class="toolbar"><input type="search" placeholder="Search banks and credit unions" aria-label="Search banks" data-act="f" data-k="q" value="${esc(F.q)}">
  <select data-act="f" data-k="type" aria-label="Institution type"><option value="">All institutions</option><option value="bank"${F.type==="bank"?" selected":""}>Banks</option><option value="cu"${F.type==="cu"?" selected":""}>Credit unions</option><option value="fin"${F.type==="fin"?" selected":""}>Fintech</option><option value="brok"${F.type==="brok"?" selected":""}>Brokerage</option></select>
- <select data-act="f" data-k="sort" aria-label="Sort">${[["amt","Biggest bonus"],["odds","Best approval odds"],["easy","Least direct deposit"],["exp","Ending soonest"],["bank","Bank A–Z"]].map(([k,l])=>`<option value="${k}"${F.sort===k?" selected":""}>${l}</option>`).join("")}</select>
- <label class="check"><input type="checkbox" data-act="f" data-k="nodd"${F.nodd?" checked":""}> No DD needed</label>
- <label class="check"><input type="checkbox" data-act="f" data-k="chexok"${F.chexok?" checked":""}> Chex-friendly only</label>
- <label class="check"><input type="checkbox" data-act="f" data-k="ddok"${F.ddok?" checked":""}> DD workarounds known</label>
- <label class="check"><input type="checkbox" data-act="f" data-k="inel"${F.inel?" checked":""}> Show ones I don't qualify for</label></div>
- <p class="count">${L.length} offers shown${hidden&&!F.inel?` · ${hidden} hidden that you don't qualify for`:""}${tracked?` · ${tracked} in My accounts`:""}</p>
- ${L.length?`<div class="grid">${L.map(x=>card(x.o)).join("")}</div>`:`<div class="empty">No offers match. Try clearing filters or raising your monthly direct deposit.</div>`}`}
+ <select data-act="f" data-k="sort" aria-label="Sort">${[["amt","Biggest bonus first"],["odds","Best approval odds"],["easy","Smallest paycheck needed"],["exp","Ending soonest"],["bank","Bank name, A to Z"]].map(([k,l])=>`<option value="${k}"${F.sort===k?" selected":""}>${l}</option>`).join("")}</select></div>
+ <div class="pills" role="group" aria-label="Filters">${pill("nodd","No paycheck needed")}${pill("ddok","Bank transfers count as paycheck")}${pill("chexok","Easy on ChexSystems")}${pill("inel","Include ones I can't get")}</div>
+ <p class="count">${L.length} offer${L.length===1?"":"s"}${hidden&&!F.inel?`. ${hidden} more hidden because you don't qualify.`:"."}${tracked?` ${tracked} already in My accounts.`:""}</p>
+ ${L.length?`<div class="grid">${L.map(x=>card(x.o)).join("")}</div>`:`<div class="empty"><b>No offers match these filters.</b><br>Turn off a filter, or raise the paycheck amount you can send to new banks.</div>`}</section></div>`}
 function mineCard(o){const t=S.track[o.id],dl=t.opened?addD(t.opened,o.win||90):null,sc=t.opened?addD(t.opened,o.keep||DEF_KEEP):null,re=reElig(o);
  const need=o.dd||0,pct=need>1?Math.min(100,(+t.ddDone||0)/need*100):0,tp=o.tx?Math.min(100,(+t.txDone||0)/o.tx*100):0;
  const inp=(k,l)=>`<label>${l}<input type="date" data-act="t" data-id="${esc(o.id)}" data-k="${k}" value="${esc(t[k]||"")}"></label>`;
@@ -582,19 +669,25 @@ function mineCard(o){const t=S.track[o.id],dl=t.opened?addD(t.opened,o.win||90):
  ${t.status==="earned"||t.status==="closed"?`<label>Bonus amount received<input type="number" min="0" data-act="t" data-id="${esc(o.id)}" data-k="got" value="${esc(t.got??o.amt)}"></label>`:""}
  <label>Notes<textarea data-act="t" data-id="${esc(o.id)}" data-k="notes" placeholder="Login, which paycheck you routed, fee waiver…">${esc(t.notes||"")}</textarea></label>
  <div class="foot">${selStatus(o)}</div></article>`}
+const STAGES=[["planned","Planning"],["applied","Applied"],["open","Open"],["earned","Paid"],["closed","Closed"],["denied","Denied"]];
 function viewMine(){const L=all().filter(o=>S.track[o.id]?.status);
- if(!L.length)return `<div class="empty">Nothing tracked yet. On <b>Find offers</b>, set an offer's status to Applied, Open or Denied and it shows up here with its deadlines.</div>`;
- const bar=askReset?`<div class="panel bar" role="alertdialog" aria-label="Confirm reset"><span style="flex:1 1 260px"><b>Reset all ${L.length} accounts?</b> Every account goes back to Find offers and its dates, progress and notes are cleared. Your profile and any offers you added stay.</span><button class="btn" data-act="reset-do" style="background:var(--mag)">Reset everything</button><button class="btn ghost" data-act="reset-no">Cancel</button></div>`
-  :`<div class="bar" style="justify-content:space-between"><span class="note">${L.length} tracked · set one to "Not started" to send just that offer back</span><button class="btn ghost" data-act="reset-ask">Reset My accounts</button></div>`;
- return bar+[["open","Open — working on requirements"],["applied","Applied, waiting"],["planned","Planning to apply"],["earned","Bonus received — waiting to close"],["closed","Closed"],["denied","Denied"]].map(([k,h])=>{const g=L.filter(o=>S.track[o.id].status===k);return g.length?`<h2 class="sec">${h} <span class="note">(${g.length})</span></h2><div class="grid">${g.map(mineCard).join("")}</div>`:""}).join("")}
+ if(!L.length)return `<div class="empty"><b>No accounts yet.</b><br>On Find offers, pick a status like "Applied" on any offer and it moves here with its deadlines.</div>`;
+ const strip=`<div class="stages" role="group" aria-label="Filter by stage">${STAGES.map(([k,l])=>{const c=L.filter(o=>S.track[o.id].status===k).length;return `<button class="stage${c?"":" zero"}" data-act="stage" data-k="${k}" aria-pressed="${STAGE===k}"><b>${c}</b><span>${l}</span></button>`}).join("")}</div>`;
+ const bar=askReset?`<div class="panel bar" role="alertdialog" aria-label="Confirm reset"><span style="flex:1 1 260px"><b>Reset all ${L.length} accounts?</b> Every account goes back to Find offers and its dates, progress and notes are cleared. Your profile and any offers you added stay.</span><button class="btn danger" data-act="reset-do">Reset everything</button><button class="btn ghost" data-act="reset-no">Cancel</button></div>`
+  :`<div class="bar" style="justify-content:space-between"><span class="note">${STAGE?`Showing ${STAGES.find(s=>s[0]===STAGE)[1].toLowerCase()} only. <a href="#mine" data-act="stage" data-k="">Show all</a>`:`To send one offer back to Find offers, set it to "Not started."`}</span><button class="btn ghost" data-act="reset-ask">Reset all accounts</button></div>`;
+ return strip+bar+[["open","Open: working on requirements"],["applied","Applied: waiting to hear back"],["planned","Planning to apply"],["earned","Paid: waiting until it's safe to close"],["closed","Closed"],["denied","Denied"]].filter(([k])=>!STAGE||STAGE===k).map(([k,h])=>{const g=L.filter(o=>S.track[o.id].status===k);return g.length?`<h2 class="sec">${h} <span class="note">(${g.length})</span></h2><div class="grid">${g.map(mineCard).join("")}</div>`:""}).join("")}
 function events(){const E=[];for(const o of all()){const t=S.track[o.id];if(!t||!t.status)continue;
  if(t.status==="open"&&t.opened)E.push({d:addD(t.opened,o.win||90),what:"Requirements deadline",o});
  if(["open","earned"].includes(t.status)&&t.opened)E.push({d:addD(t.opened,o.keep||DEF_KEEP),what:"Safe to close",o});
  if(["earned","closed"].includes(t.status)){const re=reElig(o);if(re&&re.date)E.push({d:re.date,what:"Can churn again",o})}}
  return E.sort((a,b)=>a.d.localeCompare(b.d))}
-function viewCal(){const E=events();if(!E.length)return `<div class="empty">Add an Opened date to a tracked account and its deadline, safe-close date and re-eligibility date appear here.</div>`;
- return `<div class="panel">${E.map(e=>`<div class="ev"><time class="${e.d<today()&&e.what!=="Can churn again"?"late":""}">${fmt(e.d)}</time><div><b>${esc(e.what)}</b> · ${esc(e.o.b)} <span class="note">${esc(e.o.a)}</span></div><span class="note">${days(e.d)>=0?"in "+days(e.d)+" days":Math.abs(days(e.d))+" days ago"}</span></div>`).join("")}</div>`}
-function viewData(){return `<div class="cols"><section class="panel"><h2 class="sec">Add an offer</h2><p class="note">Found a bonus that isn't listed (a local credit union, a referral)? Add it and it's tracked like the rest.</p>
+function viewCal(){const E=events();if(!E.length)return `<div class="empty"><b>No dates yet.</b><br>Add the day you opened an account in My accounts, and its deadline, safe-to-close date and next-eligible date show up here.</div>`;
+ const what={"Requirements deadline":"Finish the requirements","Safe to close":"Safe to close","Can churn again":"Eligible for the bonus again"};let m="",out="";
+ for(const e of E){const d=D(e.d),mo=d.toLocaleDateString("en-US",{month:"long",year:"numeric"});if(mo!==m){out+=`<h2 class="month">${mo}</h2>`;m=mo}
+  const late=e.d<today()&&e.what!=="Can churn again",n=days(e.d);
+  out+=`<div class="ev${late?" late":""}"><time datetime="${e.d}"><b>${d.getDate()}</b><small>${d.toLocaleDateString("en-US",{weekday:"short"})}</small></time><div><div class="what">${what[e.what]||esc(e.what)}</div><div class="who">${esc(e.o.b)}, ${esc(e.o.a)}</div></div><span class="when">${n===0?"Today":n>0?`In ${n} day${n===1?"":"s"}`:`${-n} day${n===-1?"":"s"} ago`}</span></div>`}
+ return out}
+function viewData(){return `<div class="cols"><section class="panel"><h2 class="sec">Add an offer</h2><p class="note">Found a bonus that isn't listed, like a local credit union or a referral? Add it and it's tracked like the rest.</p>
  <form id="add"><div class="two"><label>Bank<input name="b" required></label><label>Account<input name="a"></label>
  <label>Bonus ($)<input name="amt" type="number" min="0" required></label><label>Total direct deposit ($)<input name="dd" type="number" min="0"></label>
  <label>Days to complete<input name="win" type="number" min="1" value="90"></label><label>Debit transactions<input name="tx" type="number" min="0"></label>
@@ -602,7 +695,7 @@ function viewData(){return `<div class="cols"><section class="panel"><h2 class="
  <label>States (blank = nationwide, e.g. "IL WI")<input name="st"></label><label>Requirements<input name="req"></label><label>Link (https://…)<input name="url"></label>
  <p><button class="btn" type="submit">Add offer</button></p></form>
  ${S.custom.length?`<h3>Your offers</h3>${S.custom.map(c=>`<div class="ev"><div><b>${esc(c.b)}</b> ${money(c.amt)}</div><span></span><button class="btn ghost" data-act="del" data-id="${esc(c.id)}">Remove</button></div>`).join("")}`:""}</section>
- <section class="panel"><h2 class="sec">Back up or move your data</h2><p class="note" id="sync">${ref?"Saved to your Claude account — it follows you across devices.":"Saved in this browser only."}</p>
+ <section class="panel"><h2 class="sec">Back up or move your data</h2><label class="check" style="margin-bottom:8px"><input type="checkbox" data-act="prof" data-k="sound"${S.profile.sound!==false?" checked":""}> Play the cash-register sound when a bonus is paid</label><p class="note" id="sync">${ref?"Saved to your Claude account — it follows you across devices.":"Saved in this browser only."}</p>
  <p><button class="btn" data-act="copy">Copy backup</button></p><label>Restore from backup<textarea id="imp" placeholder="Paste a backup here"></textarea></label><p><button class="btn ghost" data-act="imp">Restore</button></p>
  <h2 class="sec">About the data</h2><p class="note">Offers compiled November 26, 2026 from Fat Stacks Academy, Doctor of Credit, Bankrate, US News, WalletHub and Forbes. Bonus terms change often and some are targeted or regional — always confirm on the bank's offer page before you apply. Where a bank doesn't state how long to keep the account open or how often you can earn the bonus again, this app plans for ${DEF_KEEP} days and ${DEF_CD} months and marks those dates "assumed". Bonuses are usually reported as taxable interest (1099-INT).</p>
  <p class="note">Sources: <a href="https://www.fatstacksacademy.com/blog/best-checking-bonuses-2026" target="_blank" rel="noopener">Fat Stacks</a> · <a href="https://www.doctorofcredit.com/best-bank-account-bonuses/" target="_blank" rel="noopener">Doctor of Credit</a> · <a href="https://www.bankrate.com/banking/best-bank-account-bonuses-and-promotions/" target="_blank" rel="noopener">Bankrate</a> · <a href="https://www.usnews.com/banking/bank-account-bonuses" target="_blank" rel="noopener">US News</a></p></section></div>`}
@@ -711,6 +804,7 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data
  if(a==="rvcancel"){RV=null;CHMSG="";render()}
  if(a==="chexpaste"){const t=$("#chexpaste")?.value||"";if(t.trim()){finishRead(parseReport(t),"pasted text");render()}}
  if(a==="chexfill"){S.profile.chexAuto=false;S.profile.chex=fillChex();S.profile.u=now();save();render();toast("Estimated from accounts in your tracker — adjust to match your report")}
+ if(a==="stage"){e.preventDefault();STAGE=STAGE===b.dataset.k?"":b.dataset.k;render();return}
  if(a==="reset-ask"||a==="reset-no"){askReset=a==="reset-ask";render();if(askReset)$('[data-act="reset-no"]')?.focus()}
  if(a==="reset-do"){const u=now();undoSnap=JSON.parse(JSON.stringify(S.track));let n=0;
   for(const id in S.track){if(S.track[id].status)n++;S.track[id]={u}}askReset=false;save();render();toast(`Reset ${n} account${n===1?"":"s"} — back in Find offers`,"find",1)}
@@ -731,7 +825,7 @@ document.addEventListener("dragover",e=>{if(e.target.closest&&e.target.closest("
 document.addEventListener("dragleave",e=>{const z=e.target.closest&&e.target.closest(".chexdrop");if(z)z.style.borderColor=""});
 document.addEventListener("drop",e=>{const z=e.target.closest&&e.target.closest(".chexdrop");if(!z)return;e.preventDefault();z.style.borderColor="";const f=e.dataTransfer.files[0];if(f)readFile(f)});
 function refreshChex(){if(S.profile.chexAuto&&Array.isArray(S.profile.chexInq))S.profile.chex=countsFrom(S.profile.chexInq)}
-document.addEventListener("toggle",e=>{const d=e.target;if(d.dataset&&d.dataset.det)d.open?OPEN.add(d.dataset.det):OPEN.delete(d.dataset.det)},true);
+document.addEventListener("toggle",e=>{const d=e.target;if(d.id==="side"&&!matchMedia("(min-width:1081px)").matches)SIDE_OPEN=d.open;if(d.dataset&&d.dataset.det)d.open?OPEN.add(d.dataset.det):OPEN.delete(d.dataset.det)},true);
 document.addEventListener("submit",e=>{if(e.target.id!=="add")return;e.preventDefault();const f=new FormData(e.target),n=k=>f.get(k)===""?null:+f.get(k);
  const st=String(f.get("st")||"").toUpperCase().split(/[^A-Z]+/).filter(s=>STATES.includes(s));
  const url=String(f.get("url")||"");
@@ -739,10 +833,11 @@ document.addEventListener("submit",e=>{if(e.target.id!=="add")return;e.preventDe
  save();render();toast("Offer added")});
 try{const s=JSON.parse(localStorage.getItem("cbt")||"null");if(s&&s.profile)S={...S,...s}}catch(e){}
 refreshChex();
+{const r=document.getElementById("rose");if(r)r.setAttribute("d",spiro(12,5,7,5,16,16,.62))}
 function ago(iso){const m=Math.round((Date.now()-new Date(iso))/6e4);return m<2?"just now":m<60?m+" minutes ago":m<1440?Math.round(m/60)+" hours ago":Math.round(m/1440)+" days ago"}
 function freshLine(){const e=$("#fresh");if(!e)return;if(!META){e.textContent="Showing the built-in offer list (researched Nov 26, 2026).";return}
  const ok=META.sources.filter(s=>s.ok).map(s=>s.name),bad=META.sources.filter(s=>!s.ok);
- e.textContent=`Offers checked ${ago(META.generated)}`+(ok.length?` · from ${ok.join(" and ")}`:"")+(bad.length?` · couldn't read ${bad.map(s=>s.name).join(", ")} this time${bad.some(s=>s.lastOk)?" (using its last good data)":""}`:"")}
+ e.textContent=`Offers checked ${ago(META.generated)}`+(ok.length?` from ${ok.join(" and ")}.`:".")+(bad.length?` Couldn't read ${bad.map(s=>s.name).join(" or ")} this time${bad.some(s=>s.lastOk)?", so its last good data is shown":""}.`:"")}
 (async()=>{try{const r=await fetch("data/offers.json",{cache:"no-store"});if(!r.ok)throw 0;const j=await r.json();
  if(!Array.isArray(j.offers)||j.offers.length<10)throw 0;const NUM=["amt","dd","mindd","mdd","dep","win","tx","keep","cd","spend","prevAmt"];
  const clean=o=>{const x={...o};for(const k of NUM)x[k]=x[k]==null||x[k]===""||!isFinite(+x[k])?(k==="keep"||k==="cd"?null:undefined):+x[k];
