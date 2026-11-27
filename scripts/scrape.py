@@ -345,6 +345,8 @@ def check_one(o):
     if len(text) < 400:
         return dict(rec, status="unreadable", why="page needs a browser")
     rec["amts"] = amts[:8]
+    if reference_mod.page_says_nationwide(text):
+        rec["nationwide"] = True
     if o["amt"] in amts or f"${o['amt']:,}" in text or f"${o['amt']}" in text:
         return dict(rec, status="confirmed")
     if [a for a in strong if a >= 100]:  # only call it a mismatch when the page ties a real amount to "bonus"
@@ -511,14 +513,23 @@ def main():
         offers = prev  # every source failed: republish last good data untouched
     else:
         offers = merge(curated, scraped, prev, ok)
-    if os.environ.get("SKIP_LOCATE") != "1":
-        # the roundups are a reference; the banks' own pages and the federal lists come first
+    # The roundups are a reference; the banks' own pages and the federal lists come first.
+    # Order: roundup articles -> bank offer pages -> proof of nationwide -> federal branch states -> settle.
+    lookups = os.environ.get("SKIP_LOCATE") != "1"
+    if lookups:
         try:
             reference_mod.set_aside_roundup_states(offers)
             n = reference_mod.reference(offers, prev, fetch, link_matches_bank)
             print(f"Read {n} roundup articles for bank links, availability and end dates")
         except Exception as e:
             print("Reading roundup articles failed:", e)
+    if os.environ.get("SKIP_VERIFY") != "1":
+        n = verify(offers, prev)
+        print(f"Checked {n} offer pages against their listed bonus")
+    if lookups:
+        reference_mod.gate_nationwide(offers, scraped, norm)
+        print(f"Nationwide confirmed for {sum(1 for o in offers if o.get('st') == 'ALL')} offers; "
+              f"{sum(1 for o in offers if o.get('stWasAll'))} unconfirmed fall back to branch states")
         try:
             found, looked = locate(offers, prev, norm, fetch=fetch, link_ok=link_matches_bank)
             print(f"Located {found} offers in the FDIC/NCUA lists ({looked} looked up this run)")
@@ -526,9 +537,6 @@ def main():
             print("Locating offers failed:", e)
         for o in offers:
             reference_mod.settle(o, dt.date.today())
-    if os.environ.get("SKIP_VERIFY") != "1":
-        n = verify(offers, prev)
-        print(f"Checked {n} offer pages against their listed bonus")
     data = {"generated": NOW, "sources": sources, "offers": offers,
             "scrapedNames": sorted({s["heading"] if s.get("heading") else s["b"] for s in scraped})[:500]}
     site = os.path.join(ROOT, "site")

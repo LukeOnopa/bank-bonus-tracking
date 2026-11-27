@@ -147,6 +147,38 @@ def reference(offers, prev, fetch, link_ok, today=None, seconds=180, resolve=res
     return read
 
 
+# a bank's page saying the account (not its ATMs) can be opened from anywhere
+NATIONWIDE_PAGE = re.compile(r"(?:available|open(?:ed)?|apply)[^.]{0,60}?(?:nationwide|in all 50 states|from anywhere in the (?:u\.?s\.?|united states)|to (?:all )?u\.?s\.? residents)"
+                             r"|(?:nationwide|all 50 states)[^.]{0,40}?(?:offer|bonus|account|customers|applicants)", re.I)
+
+
+def page_says_nationwide(text):
+    for m in NATIONWIDE_PAGE.finditer(text or ""):
+        if not re.search(r"\batms?\b|branches|locations|network", m[0], re.I):
+            return True
+    return False
+
+
+def gate_nationwide(offers, scraped, norm):
+    """'Anywhere in the US' needs proof: the offer's article says nationwide, Doctor of Credit lists it in its
+    nationwide section, the bank's own page says so, or it was confirmed by hand (natSrc in curated.json).
+    Otherwise the states fall back to where the bank has branches (looked up next)."""
+    doc_nat = {norm(x["b"]) for x in scraped if x.get("src") == "doc" and x.get("st") == "ALL"}
+    for o in offers:
+        if o.get("st") != "ALL" or o.get("custom"):
+            continue
+        ref = o.get("ref") or {}
+        if ref.get("st") == "ALL":
+            o["natSrc"] = ref.get("src")
+        elif norm(o["b"]) in doc_nat:
+            o["natSrc"] = "Doctor of Credit"
+        elif (o.get("check") or {}).get("nationwide"):
+            o["natSrc"] = "bank"
+        elif not o.get("natSrc"):
+            o["st"], o["stWasAll"] = "?", True
+            o.pop("stSrc", None)
+
+
 def set_aside_roundup_states(offers):
     """Roundup state lists become a reference: the federal lookup decides (nationwide stays nationwide)."""
     for o in offers:
@@ -161,7 +193,7 @@ def settle(o, today):
     ref = o.get("ref") or {}
     said = ref.get("st") or o.get("stRoundup")  # what the roundups say about availability
     if said == "ALL" and o.get("st") != "ALL":
-        o.update(st="ALL", stSrc="article")       # online accounts aren't limited to branch states
+        o.update(st="ALL", stSrc="article", natSrc=ref.get("src") or "the bonus roundups")  # the article confirms it's nationwide
     elif o.get("st") in ("?", None) and said:
         o.update(st=said, stSrc="article")         # no federal match: the roundup's list is all we have
     if said and o.get("stSrc") in ("branches", "hq"):
