@@ -7,7 +7,7 @@ A checking-account bonus tracker that refreshes its offer list every hour.
 - Finds the checking bonuses you qualify for (state, direct deposit, cash on hand), with requirements, safe-to-close dates and churn rules.
 - Tracks the accounts you've applied for, opened, been paid on, closed or been denied for.
 - Shows which transfers count as direct deposits at each bank and your approval odds from your ChexSystems inquiries (you can upload your ChexSystems PDF).
-- Your data stays in your own browser. Use **Add offer & data → Copy backup** to move it to another device.
+- Your data stays in your own browser, or sign in with a free account (email and password) to sync it across devices. **Add & back up → Copy backup** still works without an account.
 
 ## How the hourly refresh works
 
@@ -18,6 +18,15 @@ A checking-account bonus tracker that refreshes its offer list every hour.
 3. It deploys the app (`index.html`) plus a fresh `data/offers.json` to GitHub Pages. Nothing is committed, so the repo history stays clean.
 
 If a site is down or changes its layout, that source is skipped for the run and the last good data is kept. The app's header shows when offers were last checked and whether any source failed. Offers that drop off both sites for 7 days are hidden as possibly ended.
+
+## Accounts (Supabase)
+
+Free accounts use Supabase for sign-in and storage. The site talks to Supabase's web API directly, with no extra library.
+
+- `SB_URL` and `SB_KEY` near the top of the account code in `index.html` hold the project URL and the publishable key. The publishable key is meant to be public. If `SB_URL` is blank, the Sign in button stays hidden and the site works as before.
+- `supabase/setup.sql` creates the `user_data` table (one row per user) with row-level security, so each user can only read and write their own data.
+- In Supabase under **Authentication → URL Configuration**, the Site URL and redirect URLs must include the live app address, or confirmation and password-reset emails will link to the wrong place.
+- Sync merges by timestamp per entry, so two devices editing at once don't overwrite each other's newer changes.
 
 ## Maintenance
 
