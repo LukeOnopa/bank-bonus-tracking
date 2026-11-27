@@ -298,6 +298,11 @@ div.tl-name{cursor:default}
 .ierr{color:var(--brick);font-weight:600}.ihint{color:var(--mute)}
 .isteps .locked button{opacity:.5;cursor:not-allowed}
 .check.none{margin-top:12px}
+.planbtns{display:flex;flex-direction:column;gap:8px}
+.wipe{margin:0 0 18px;border-color:color-mix(in srgb,var(--brick) 45%,var(--rule))}.wipe h3{margin-bottom:6px}
+.linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--brick);text-decoration:underline;text-underline-offset:3px;cursor:pointer;margin-left:4px}
+@media(max-width:700px){.planbtns{flex-direction:row;flex-wrap:wrap}}
+
 .bankgrid-wrap{max-height:460px;overflow:auto;margin-top:12px;padding-right:4px;scrollbar-width:thin}
 .bgh{font:600 14px var(--sans);margin:14px 0 8px;color:var(--ink)}.bgh:first-child{margin-top:0}.bgh span{color:var(--mute);font-weight:400;margin-left:4px}
 .bankadd{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-top:12px}.bankadd input{margin:0}
@@ -496,8 +501,8 @@ const all=()=>OFFERS.concat(S.custom.map(c=>({...c,custom:1})));
 const T=id=>S.track[id]||(S.track[id]={});
 const grp=o=>o.g||o.b.toLowerCase();
 const mreq=o=>o.mdd||((o.mindd||o.dd)?Math.ceil((o.mindd||o.dd)/Math.max(1,(o.win||90)/30)):0);
-function toast(m,go,undo){const t=$("#toast");t.innerHTML=esc(m)+(go?` <button data-tab="${go}">View</button>`:"")+(undo?` <button data-act="undo">Undo</button>`:"");t.classList.add("on");clearTimeout(t._x);t._x=setTimeout(()=>t.classList.remove("on"),undo?6000:go?3200:1800)}
-let askReset=false,undoSnap=null;
+function toast(m,go,undo){const t=$("#toast");t.innerHTML=esc(m)+(go?` <button data-tab="${go}">View</button>`:"")+(undo?` <button data-act="${typeof undo==="string"?undo:"undo"}">Undo</button>`:"");t.classList.add("on");clearTimeout(t._x);t._x=setTimeout(()=>t.classList.remove("on"),undo?6000:go?3200:1800)}
+let askReset=false,undoSnap=null,askWipe=false,wipeSnap=null;
 function used(){let u=0;for(const o of all()){const t=S.track[o.id];if(t&&t.status==="open"&&(!t.opened||days(addD(t.opened,o.win||90))>=0))u+=mreq(o)}return u}
 function reElig(o){ // latest bonus/open in same churn group
  let last=null;for(const x of all()){if(grp(x)!==grp(o))continue;const t0=S.track[x.id];if(!t0)continue;
@@ -859,10 +864,15 @@ function timeline(P){const T0=today(),rows=[];
  const ghost=STAGE?"":P.slice(0,PLANALL?99:6).map(s=>`<div class="tl-row ghost"><div class="tl-name"><b>${esc(s.o.b)}</b><small>Suggested, ${money(s.o.amt)}</small></div><div class="tl-track">${seg("plan",s.on,s.end,`Suggested: apply ${fmt(s.on)}, requirements until ${fmt(s.end)}`)}${seg("planhold",s.end,s.close,`Keep open until about ${fmt(s.close)}`)}${mk("pay",s.pay,`Bonus usually posts around ${fmt(s.pay)}`)}<i class="today" style="left:${x(T0)}%"></i><button class="tl-add" data-act="nm" data-k="plan" data-id="${esc(s.o.id)}" data-d="${s.on}" style="left:${x(s.on)}%" title="Add to my plan">+</button></div></div>`).join("");
  return `<section class="tl"><div class="tl-head"><h2 class="sec">Timeline</h2><div class="legend"><span><i class="seg wait"></i>Waiting to open</span><span><i class="seg work"></i>Requirements window</span><span><i class="seg hold"></i>Keep open</span><span><b class="mk paid"></b>Paid</span><span><b class="mk closed"></b>Closed</span><span><b class="mk again"></b>Eligible again</span><span><i class="seg plan"></i>Suggested</span></div></div>
  <div class="tl-scroll"><div class="tl-grid"><div class="tl-row tl-axis"><div class="tl-name"></div><div class="tl-track">${months.join("")}<em class="today-l" style="left:${x(T0)}%">Today</em></div></div>${body}${ghost?`<div class="tl-sep">Suggested next applications</div>${ghost}`:""}</div></div>${!STAGE&&P.length>6?`<p style="margin:10px 0 0"><button class="btn ghost" data-act="planall">${PLANALL?"Show fewer suggestions":`Show all ${P.length} suggestions`}</button></p>`:""}</section>`}
+function wipeHtml(){const n=all().filter(o=>S.track[o.id]?.status&&S.track[o.id].status!=="planned").length;
+ return `<section class="panel wipe" role="alertdialog" aria-labelledby="wipe-t"><h3 id="wipe-t">Start your plan over from scratch?</h3>
+ <p class="note">This clears every setup answer (state, paycheck, banks you've used, pace and ChexSystems) and all planned applications, then takes you back to step 1. Your sound setting and offers you added by hand stay.</p>
+ ${n?`<label class="check"><input type="checkbox" id="wipe-acc" checked> Also remove my ${n} tracked account${n===1?"":"s"} (applied, open, paid, closed and denied) and their history</label>`:""}
+ <div class="bar" style="margin:14px 0 0"><button class="btn danger" data-act="wipe-do">Start over</button><button class="btn ghost" data-act="wipe-no">Cancel</button></div></section>`}
 function planHtml(P){const p=S.profile,sum=P.reduce((s,x)=>s+x.o.amt,0);
  const rules=[`live in ${esc(p.state)}`,`${money(+p.ddCap||0)} a month of paycheck split up to ${+p.splits||3} ways`,`up to ${+p.pace||2} new account${(+p.pace||2)===1?"":"s"} a month`,p.transfers?"transfers count where they're known to work":"real paychecks only",p.onlySure!==false?"only offers you definitely qualify for":"uncertain offers included"];
  return `<section class="panel planbox"><div><h3>Your plan for the next 6 months</h3><p class="note">${P.length?`Following the suggested schedule could earn about <b>${money(sum)}</b> from ${P.length} new account${P.length===1?"":"s"}.`:`No new applications fit your answers right now. Try allowing more accounts a month, a bigger paycheck amount, or uncertain offers.`} Based on your answers: ${rules.join(", ")}.</p></div>
- <button class="btn ghost" data-act="iedit">Change my answers</button></section>`}
+ <div class="planbtns"><button class="btn ghost" data-act="iedit">Change my answers</button><button class="btn ghost" data-act="wipe-ask">Start over</button></div></section>`}
 let ISTEP=0,IEDIT=false,ERRSTEP=-1,BQ="";
 // banks that have a bonus you could get where you live, plus anything you've already marked
 function bankList(){const p=S.profile,st=p.state,M=new Map();
@@ -914,7 +924,7 @@ function intake(){const p=S.profile,err=ERRSTEP===ISTEP?missing(ISTEP):[],bad=ne
   +q("onlySure","Only suggest offers you definitely qualify for?","Some offers come from bonus sites without a list of eligible states. Choose the second option to include them anyway.",yn("onlySure","Yes, only sure things","Include uncertain ones"))
   +q("c12","How many bank applications are on your ChexSystems report from the last 12 months?",`Rough is fine. For exact counts, upload your report on the Deposits &amp; ChexSystems tab.`,num("c12",(S.profile.chex||{}).c12??"",1));
  const left=missing(ISTEP).length;
- return `<section class="intake panel"><div class="ihead"><h2 class="sec">${IEDIT?"Your planning answers":"Let's build your plan"}</h2><p class="note">${IEDIT?"Change anything and the plan updates right away.":"Five quick questions, so suggestions only include bonuses you can actually get. Answer each step to unlock the next."}</p>
+ return `<section class="intake panel"><div class="ihead"><h2 class="sec">${IEDIT?"Your planning answers":"Let's build your plan"}</h2><p class="note">${IEDIT?"Change anything and the plan updates right away.":"Five quick questions, so suggestions only include bonuses you can actually get. Answer each step to unlock the next."}${IEDIT||Object.keys(S.profile.ia||{}).length?` <button class="linkbtn" data-act="wipe-ask">Start over</button>`:""}</p>
  <ol class="isteps">${ISTEPS.map((s,i)=>{const done=i!==ISTEP&&!missing(i).length,locked=i>reach;
   return `<li class="${i===ISTEP?"on":done?"done":""}${locked?" locked":""}"><button data-act="istep" data-k="${i}"${locked?` disabled aria-disabled="true" title="Finish step ${reach+1} first"`:""}${i===ISTEP?' aria-current="step"':""}>${s}</button></li>`}).join("")}</ol></div>
  <div class="ibody">${body}</div>
@@ -924,6 +934,7 @@ function intake(){const p=S.profile,err=ERRSTEP===ISTEP?missing(ISTEP):[],bad=ne
 let ISTART=false;
 function viewMine(){const L=all().filter(o=>S.track[o.id]?.status),ready=S.profile.intakeDone&&S.profile.state;
  if(!ready&&!ISTART){ISTART=true;ISTEP=Math.min(firstOpen(),4)}
+ if(askWipe&&(!ready||IEDIT))return wipeHtml();
  if(!ready||IEDIT){const parts=intake();return parts+(L.length&&!IEDIT?`<p class="note" style="margin:14px 0 22px">Your ${L.length} tracked account${L.length===1?" is":"s are"} below. Suggestions appear once you finish.</p>`+timeline([])+mineCards(L):"")}
  const P=plan();
  if(!L.length&&!P.length)return `<div class="empty"><b>No accounts yet.</b><br>Choose your state on Find offers to get a suggested plan, or pick a status like "Applied" on any offer and it moves here.</div>`;
@@ -931,7 +942,7 @@ function viewMine(){const L=all().filter(o=>S.track[o.id]?.status),ready=S.profi
  const bar=askReset?`<div class="panel bar" role="alertdialog" aria-label="Confirm reset"><span style="flex:1 1 260px"><b>Reset all ${L.length} accounts?</b> Every account goes back to Find offers and its dates, progress and notes are cleared. Your profile and any offers you added stay.</span><button class="btn danger" data-act="reset-do">Reset everything</button><button class="btn ghost" data-act="reset-no">Cancel</button></div>`
   :L.length?`<div class="bar" style="justify-content:space-between;margin-top:28px"><span class="note">${STAGE?`Showing ${STAGES.find(s=>s[0]===STAGE)[1].toLowerCase()} only. <a href="#mine" data-act="stage" data-k="">Show all</a>`:`To send one offer back to Find offers, set it to "Not started."`}</span><button class="btn ghost" data-act="reset-ask">Reset all accounts</button></div>`:"";
  const cards=mineCards(L);
- return strip+movesHtml(moves(P))+planHtml(P)+timeline(P)+bar+cards}
+ return strip+movesHtml(moves(P))+(askWipe?wipeHtml():planHtml(P))+timeline(P)+bar+cards}
 function mineCards(L){return [["open","Open: working on requirements"],["applied","Applied: waiting to hear back"],["planned","Planning to apply"],["earned","Paid: waiting until it's safe to close"],["closed","Closed"],["denied","Denied"]].filter(([k])=>!STAGE||STAGE===k).map(([k,h])=>{const g=L.filter(o=>S.track[o.id].status===k);return g.length?`<h2 class="sec">${h} <span class="note">(${g.length})</span></h2><div class="grid">${g.map(mineCard).join("")}</div>`:""}).join("")}
 function events(){const E=[];for(const o of all()){const t=S.track[o.id];if(!t||!t.status)continue;
  if(t.status==="open"&&t.opened)E.push({d:addD(t.opened,o.win||90),what:"Requirements deadline",o});
@@ -1068,6 +1079,17 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data
  if(a==="rvcancel"){RV=null;CHMSG="";render()}
  if(a==="chexpaste"){const t=$("#chexpaste")?.value||"";if(t.trim()){finishRead(parseReport(t),"pasted text");render()}}
  if(a==="chexfill"){S.profile.chexAuto=false;S.profile.chex=fillChex();S.profile.u=now();save();render();toast("Estimated from accounts in your tracker — adjust to match your report")}
+ if(a==="wipe-ask"||a==="wipe-no"){askWipe=a==="wipe-ask";render();if(askWipe){$("#view .wipe")?.scrollIntoView({block:"center",behavior:RM.matches?"auto":"smooth"});$('#view [data-act="wipe-no"]')?.focus({preventScroll:true})}return}
+ if(a==="wipe-do"){const acc=$("#wipe-acc")?.checked!==false,u=now();wipeSnap=JSON.parse(JSON.stringify(S));
+  S.profile={sound:S.profile.sound,u};
+  for(const id in S.track){const t=S.track[id];if(acc||t.status==="planned"||!t.status)S.track[id]={u}}
+  askWipe=false;ISTEP=0;ERRSTEP=-1;IEDIT=false;ISTART=false;BQ="";STAGE="";PLANALL=false;RV=null;CHMSG="";askReset=false;
+  Object.assign(F,{q:"",type:"",sort:"amt",inel:false,nodd:false,chexok:false,ddok:false});
+  save();tab="mine";try{history.replaceState(null,"","#mine")}catch(x){}render();
+  window.scrollTo({top:$("#view").getBoundingClientRect().top+scrollY-76,behavior:"auto"});$('#view .intake select[data-k="state"]')?.focus({preventScroll:true});
+  toast(acc?"Everything cleared. Let's build your plan.":"Plan cleared. Your accounts are kept.",null,"undowipe");return}
+ if(a==="undowipe"&&wipeSnap){const u=now(),snap=wipeSnap;wipeSnap=null;snap.profile.u=u;for(const id in snap.track)snap.track[id].u=u;
+  for(const id in S.track)if(!snap.track[id])snap.track[id]=S.track[id];S=snap;save();render();toast("Restored your plan and accounts");return}
  if(a==="istep"){const k=+b.dataset.k;if(k>=0&&k<=4&&k<=firstOpen()){ISTEP=k;ERRSTEP=-1;render();$("#view .intake")?.scrollIntoView({block:"start",behavior:RM.matches?"auto":"smooth"})}return}
  if(a==="inext"||a==="idone"){if(missing(ISTEP).length){ERRSTEP=ISTEP;render();const f=$(`#view .iq.err input,#view .iq.err select,#view .iq.err button`);if(f){f.focus({preventScroll:true});f.closest(".iq").scrollIntoView({block:"center",behavior:RM.matches?"auto":"smooth"})}return}
   ERRSTEP=-1;if(a==="inext"){ISTEP++;render();$("#view .intake")?.scrollIntoView({block:"start",behavior:RM.matches?"auto":"smooth"});$("#view .ibody input,#view .ibody select,#view .ibody .bk")?.focus({preventScroll:true});return}}
