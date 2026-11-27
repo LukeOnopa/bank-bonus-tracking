@@ -116,6 +116,7 @@ abbr[title]{text-decoration:underline dotted;text-underline-offset:3px;cursor:he
 .facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 16px;margin:2px 0 0;padding:12px 0 0;border-top:1px solid var(--line)}
 .facts dt{font-size:12px;color:var(--mute);font-weight:600}.facts dd{margin:1px 0 0;font-size:14px}
 .facts .muted{color:var(--mute)}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px;background:var(--mute)}.dot.o5{background:var(--ok)}.dot.o3{background:var(--warn)}.dot.o1{background:var(--mag)}
+.vfy{margin:-4px 0 0;font-size:13px;color:var(--ok);font-weight:600}.vfy::before{content:"✓ ";}
 .heads{margin:0;font-size:14px;padding:8px 12px;border-left:3px solid var(--warn);background:var(--warnsoft);border-radius:0 8px 8px 0}
 .go{font-weight:600;color:var(--ink)!important}
 .card.inel .steps,.card.inel .facts{opacity:.8}
@@ -429,24 +430,35 @@ function facts(o){const od=odds(o),cl=chexLbl(o),dl=ddLbl(o),F=[];
  F.push(["Approval odds",od?`<span class="dot ${oddsLbl(od.p)[1]}"></span>${oddsLbl(od.p)[0]} · ~${od.p}%`:`<span class="muted">${cl[0].replace(/^Chex: /,"ChexSystems: ")}</span>`]);
  if(mreq(o)&&dl)F.push(["Paycheck needed?",/strict/.test(dl[0])?"Yes — use a real paycheck":"No — bank transfers usually count"]);
  return `<dl class="facts">${F.map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join("")}</dl>`}
-function headsUp(o){const H=[];if(o.note)H.push(esc(o.note));
- if(o.auto)H.push("Collected automatically from bonus sites — confirm the details on the offer page before applying.");
+const hostOf=u=>{try{return new URL(u).hostname.replace(/^www\./,"")}catch(e){return""}};
+function verifyLine(o){const c=o.check;if(!c||c.status!=="confirmed")return"";
+ return `<p class="vfy">${money(o.amt)} bonus confirmed on ${esc(hostOf(c.url))}${c.on?` · checked ${fmt(c.on).replace(/, \d{4}$/,"")}`:""}</p>`}
+function headsUp(o){const H=[],c=o.check||{};if(o.note)H.push(esc(o.note));
+ if(c.status==="differs")H.push(`${esc(o.b)}'s own offer page mentions ${c.amts.map(money).join(", ")} — not ${money(o.amt)}. The offer may have changed, or the bank lists a different tier; check before applying.`);
+ if(c.status==="bad-link")H.push(`The link the bonus sites gave doesn't go to ${esc(o.b)}'s website${c.why?` (${esc(c.why)})`:""}, so it's been removed. Use the source article to find the offer.`);
+ if(o.auto&&c.status!=="confirmed")H.push("Collected automatically from bonus sites — confirm the details on the offer page before applying.");
  else if(META&&!o.seen&&!o.custom)H.push("Not on the bonus roundups right now — make sure it's still live.");
  if(o.seen&&META){const a=-days(o.seen);if(a>1&&a<=STALE_DAYS)H.push(`Last listed on bonus sites ${fmt(o.seen)} — it may be ending.`)}
  return H.length?`<p class="heads"><b>Heads-up:</b> ${H.join(" ")}</p>`:""}
 function selStatus(o){const v=S.track[o.id]?.status||"";return `<select data-act="status" data-id="${esc(o.id)}" aria-label="Status for ${esc(o.b)}">${STATUS.map(([k,l])=>`<option value="${k}"${k===v?" selected":""}>${l}</option>`).join("")}</select>`}
-function card(o){const r=elig(o),link=[o.offerUrl,o.url].find(u=>/^https:\/\//.test(u||""));
+function checkNote(o){const c=o.check;if(!c||["confirmed","differs","bad-link"].includes(c.status))return"";
+ const why={unreadable:`couldn't read ${esc(hostOf(c.url)||"the bank's page")} automatically${c.why?` (${esc(c.why)})`:""}`,"no-amount":`${esc(hostOf(c.url))} loaded but didn't show a bonus amount`,"no-link":"no direct link to the bank's offer page yet"}[c.status];
+ return why?`<h4>Bank page check</h4><p class="note">Not confirmed: ${why}. Compare the amount on the bank's site yourself.</p>`:""}
+function linkFor(o){const ok=u=>/^https:\/\//.test(u||"");
+ if(ok(o.offerUrl))return[o.offerUrl,`Go to offer on ${esc(hostOf(o.offerUrl))} ↗`];
+ if(ok(o.url))return[o.url,o.auto?`Read about it on ${esc(hostOf(o.url))} ↗`:`${esc(o.b)} website ↗`];return null}
+function card(o){const r=elig(o),lk=linkFor(o);
  const tags=[];if(o.changed&&-days(o.changed)<=7&&o.prevAmt)tags.push(`<span class="tag">was ${money(o.prevAmt)}</span>`);
  if(o.first&&-days(o.first)<=3&&META&&o.first>FIRST_RUN)tags.push(`<span class="tag new">New</span>`);
  const qual=r.length?`<p class="qual no">${r.map(esc).join(" · ")}</p>`:S.profile.state?`<p class="qual yes">You qualify</p>`:`<p class="qual">Choose your state above to check if you qualify</p>`;
  return `<article class="card ${r.length?"inel":""}" data-card="${esc(o.id)}">
  <div class="top"><div><h3>${esc(o.b)}</h3><small>${esc(o.a||"Checking")}${o.custom?" · added by you":""}</small></div><div class="amtw"><div class="amt">${money(o.amt)}</div><small>bonus</small>${tags.join("")}</div></div>
- ${qual}
+ ${qual}${verifyLine(o)}
  <h4 class="lbl">How to earn it</h4>${steps(o)}
  ${facts(o)}
  ${headsUp(o)}
- <details class="more" data-det="${esc(o.id)}"${OPEN.has(o.id)?" open":""}><summary>More details: paycheck alternatives &amp; approval data</summary>${o.req?`<h4>Offer summary</h4><p class="note">${esc(o.req)}</p>`:""}${ddBlock(o)}${chexBlock(o)}</details>
- <div class="foot">${selStatus(o)}${link?`<a class="go" href="${esc(link)}" target="_blank" rel="noopener">View offer ↗</a>`:""}</div></article>`}
+ <details class="more" data-det="${esc(o.id)}"${OPEN.has(o.id)?" open":""}><summary>More details: paycheck alternatives &amp; approval data</summary>${o.req?`<h4>Offer summary</h4><p class="note">${esc(o.req)}</p>`:""}${checkNote(o)}${ddBlock(o)}${chexBlock(o)}</details>
+ <div class="foot">${selStatus(o)}${lk?`<a class="go" href="${esc(lk[0])}" target="_blank" rel="noopener">${lk[1]}</a>`:""}</div></article>`}
 function profBar(){const p=S.profile;
  return `<div class="panel prof"><label>Your state<select data-act="prof" data-k="state"><option value="">Choose…</option>${STATES.map(s=>`<option${s===p.state?" selected":""}>${s}</option>`).join("")}</select></label>
  <label>Direct deposit you can route each month<input type="number" inputmode="numeric" min="0" step="100" data-act="prof" data-k="ddCap" value="${+p.ddCap||0}"></label>
@@ -735,7 +747,8 @@ function freshLine(){const e=$("#fresh");if(!e)return;if(!META){e.textContent="S
  if(!Array.isArray(j.offers)||j.offers.length<10)throw 0;const NUM=["amt","dd","mindd","mdd","dep","win","tx","keep","cd","spend","prevAmt"];
  const clean=o=>{const x={...o};for(const k of NUM)x[k]=x[k]==null||x[k]===""||!isFinite(+x[k])?(k==="keep"||k==="cd"?null:undefined):+x[k];
   x.st=Array.isArray(x.st)?x.st.filter(s=>STATES.includes(s)):x.st==="ALL"?"ALL":"?";if(Array.isArray(x.st)&&!x.st.length)x.st="?";
-  for(const k of ["id","b","a","req","note","fee","pull","url","offerUrl","exp","seen","first","changed","t"])if(x[k]!=null)x[k]=String(x[k]);return x};
+  for(const k of ["id","b","a","req","note","fee","pull","url","offerUrl","exp","seen","first","changed","t"])if(x[k]!=null)x[k]=String(x[k]);
+  if(x.check&&typeof x.check==="object"){const c=x.check;x.check={status:String(c.status||""),on:String(c.on||""),url:String(c.url||""),why:String(c.why||""),amts:Array.isArray(c.amts)?c.amts.map(Number).filter(isFinite).slice(0,8):[]}}else delete x.check;return x};
  const L=j.offers.filter(o=>o&&o.id&&o.b&&+o.amt>0).map(clean);if(L.length<10)throw 0;OFFERS.length=0;OFFERS.push(...L);META=j;
  FIRST_RUN=j.offers.reduce((m,o)=>o.first&&(!m||o.first<m)?o.first:m,"");}catch(e){META=null}
  freshLine();render()})();

@@ -19,6 +19,8 @@ import re
 import shutil
 import sys
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
@@ -166,13 +168,13 @@ def parse_doc(html):
         # collect body until next heading
         parts, links = [], {}
         for sib in el.next_siblings:
-            if getattr(sib, "name", None) in ("h2", "h3"):
+            if getattr(sib, "name", None) in ("h2", "h3", "h4") or (getattr(sib, "find_all", None) and sib.find(["h2", "h3", "h4"])):
                 break
             if getattr(sib, "find_all", None):
                 parts.append(sib.get_text(" "))
                 for a in sib.find_all("a", href=True):
                     lt = clean(a.get_text()).lower()
-                    if "direct link" in lt and "direct" not in links:
+                    if "direct link" in lt and "direct" not in links and link_matches_bank(name or txt, a["href"]):
                         links["direct"] = a["href"]
                     elif "full post" in lt and "post" not in links:
                         links["post"] = a["href"]
@@ -183,6 +185,7 @@ def parse_doc(html):
         o = {"b": name, "amt": max(amts), "src": "doc", "heading": txt,
              "st": st if st else ("ALL" if "checking" in section and "state" not in section else "?"),
              "req": bodytxt[:240], "url": next((u for u in (links.get("direct"), links.get("post")) if u and u.startswith("https://")), DOC_URL)}
+        o["srcUrl"] = links.get("post") if (links.get("post") or "").startswith("https://") else DOC_URL
         o.update(parse_reqs(bodytxt))
         if re.search(r"in branch", txt, re.I):
             o["branch"] = 1
@@ -248,6 +251,120 @@ def parse_fs(html):
     return offers
 
 
+# ---------------- link + amount verification ----------------
+THIRD_PARTY = ("doctorofcredit.com", "fatstacksacademy.com", "thebonusstack.com", "reddit.com", "bit.ly", "tinyurl.com")
+NAME_STOP = {"bank", "banks", "credit", "union", "federal", "the", "and", "of", "na", "fcu", "cu", "financial", "community", "national",
+             "trust", "savings", "first", "checking", "account", "company", "group", "state", "city", "american", "america"}
+KNOWN_DOMAINS = {"chase": ["chase.com"], "bankofamerica": ["bankofamerica.com", "bofa.com"], "us": ["usbank.com"], "citi": ["citi.com", "citibank.com"],
+                 "wellsfargo": ["wellsfargo.com", "wf.com"], "key": ["key.com"], "fifththird": ["53.com"], "td": ["td.com", "tdbank.com"],
+                 "navy": ["navyfederal.org"], "bmo": ["bmo.com"], "pnc": ["pnc.com"], "schwab": ["schwab.com"], "capitalone": ["capitalone.com"],
+                 "hsbc": ["hsbc.com", "us.hsbc.com"], "truist": ["truist.com"], "regions": ["regions.com"], "citizens": ["citizensbank.com"],
+                 "huntington": ["huntington.com"], "sofi": ["sofi.com"], "fourleaf": ["fourleaffcu.org"], "bok": ["bokfinancial.com"]}
+
+
+def host_of(url):
+    try:
+        return (urlparse(url).hostname or "").lower().removeprefix("www.")
+    except ValueError:
+        return ""
+
+
+def link_matches_bank(bank, url):
+    """True if url is on the bank's own website (not a blog, not another bank)."""
+    host = host_of(url)
+    if not host or not url.startswith("https://") or any(host == d or host.endswith("." + d) for d in THIRD_PARTY):
+        return False
+    n = norm(bank)
+    if n in KNOWN_DOMAINS:
+        return any(host == d or host.endswith("." + d) for d in KNOWN_DOMAINS[n])
+    labels = re.sub(r"[^a-z0-9.]", "", host).split(".")[:-1]  # drop TLD
+    site = "".join(labels)
+    words = [w for w in re.findall(r"[a-z0-9]+", clean(bank).lower()) if w not in NAME_STOP]
+    if any(len(w) >= 4 and w in site for w in words):
+        return True
+    if n and len(n) >= 4:
+        for lbl in labels:
+            rest = lbl.replace(n, "", 1) if n in lbl else None
+            if rest is not None and (len(n) >= 8 or rest in ("", "bank", "cu", "fcu", "online", "banking", "creditunion", "fed", "federal", "financial")):
+                return True
+            if len(lbl) >= 5 and lbl in n:
+                return True
+    initials = "".join(w[0] for w in re.findall(r"[a-z0-9]+", re.sub(r"\(.*?\)", "", clean(bank).lower())) if w not in ("the", "of", "and", "a"))
+    return len(initials) >= 3 and any(lbl.startswith(initials) for lbl in labels)
+
+
+def page_amounts(html):
+    """Dollar amounts the page ties to a bonus/reward/offer."""
+    soup = BeautifulSoup(html, "html.parser")
+    for t in soup(["script", "style", "noscript", "svg"]):
+        t.decompose()
+    text = clean(soup.get_text(" "))
+    amts = set()
+    for m in re.finditer(r"\$\s?([\d,]{2,6})(?![\d,]*%)", text):
+        ctx = text[max(0, m.start() - 120): m.end() + 120].lower()
+        if re.search(r"bonus|reward|earn|get \$|offer|promotion|cash", ctx):
+            v = int(m[1].replace(",", ""))
+            if 25 <= v <= 5000:
+                amts.add(v)
+    return text, sorted(amts)
+
+
+def check_one(o):
+    url = o.get("offerUrl") or (o.get("url") if not o.get("auto") else None)
+    rec = {"on": TODAY, "url": url}
+    if not url:
+        return dict(rec, status="no-link")
+    if not link_matches_bank(o["b"], url):
+        return dict(rec, status="bad-link")
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (compatible; BankBonusTracker/1.0; +https://github.com/LukeOnopa/bank-bonus-tracking)",
+                                                   "Accept": "text/html", "Accept-Language": "en-US"})
+        with urllib.request.urlopen(req, timeout=15) as r:
+            final = r.geturl()
+            html = r.read(3_000_000).decode("utf-8", "replace")
+    except Exception as e:
+        return dict(rec, status="unreadable", why=f"{type(e).__name__}"[:60])
+    if not link_matches_bank(o["b"], final):
+        return dict(rec, status="bad-link", why="redirected to " + host_of(final))
+    text, amts = page_amounts(html)
+    if len(text) < 400:
+        return dict(rec, status="unreadable", why="page needs a browser")
+    rec["amts"] = amts[:8]
+    if o["amt"] in amts or f"${o['amt']:,}" in text or f"${o['amt']}" in text:
+        return dict(rec, status="confirmed")
+    if amts:
+        return dict(rec, status="differs")
+    return dict(rec, status="no-amount")
+
+
+def verify(offers, prev, budget=40, max_age_days=1):
+    """Re-check the oldest/never-checked offer links each run (polite: a few dozen pages an hour)."""
+    prev_chk = {o["id"]: o.get("check") for o in prev if o.get("check")}
+    prev_chk.update({"bank:" + norm(o["b"]): o.get("check") for o in prev if o.get("check")})
+    due = []
+    for o in offers:
+        old = prev_chk.get(o["id"]) or prev_chk.get("bank:" + norm(o["b"]))
+        url_now = o.get("offerUrl") or (o.get("url") if not o.get("auto") else None)
+        if old and old.get("url") == url_now:
+            o["check"] = old
+            age = (dt.date.today() - dt.date.fromisoformat(old["on"])).days
+            if age < max_age_days:
+                continue
+        due.append(o)
+    due.sort(key=lambda o: (o.get("check") or {}).get("on", ""))
+    due = due[:budget]
+    with ThreadPoolExecutor(8) as ex:
+        for o, rec in zip(due, ex.map(check_one, due)):
+            o["check"] = rec
+    for o in offers:  # never show a link we know is wrong
+        c = o.get("check") or {}
+        if c.get("status") == "bad-link" and c.get("url") == o.get("offerUrl"):
+            o.pop("offerUrl", None)
+        if c.get("status") == "bad-link" and o.get("auto") and c.get("url") == o.get("url"):
+            o["url"] = o.get("srcUrl") or DOC_URL
+    return sum(1 for o in due)
+
+
 # ---------------- merge ----------------
 def slug(s):
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")[:40]
@@ -294,7 +411,7 @@ def merge(curated, scraped, prev, ok_sources):
                     o["cd"], o["cdSrc"] = h["cd"], h["src"]
                 if not o.get("exp") and h.get("exp") and h["exp"] >= TODAY:
                     o["exp"] = h["exp"]
-                if h["src"] == "doc" and h.get("url", "").startswith("https://") and h["url"] != DOC_URL:
+                if h["src"] == "doc" and link_matches_bank(c["b"], h.get("url", "")):
                     o["offerUrl"] = h["url"]
         out.append(o)
     # brand-new offers
@@ -311,7 +428,7 @@ def merge(curated, scraped, prev, ok_sources):
             if a["st"] == "?" and s["st"] != "?":
                 a["st"] = s["st"]
             if s["src"] == "doc" and a["srcs"] == ["fs"]:  # prefer Doctor of Credit's wording and link
-                a.update(b=s["b"], amt=s["amt"], req=s.get("req", a["req"]), url=s.get("url") or a["url"])
+                a.update(b=s["b"], amt=s["amt"], req=s.get("req", a["req"]), url=s.get("url") or a["url"], srcUrl=s.get("srcUrl") or a.get("srcUrl"))
             a["srcs"] = sorted(set(a["srcs"]) | {s["src"]})
             continue
         b = s["b"]
@@ -320,8 +437,11 @@ def merge(curated, scraped, prev, ok_sources):
                     "dd": s.get("dd"), "mindd": s.get("mindd"), "mdd": s.get("mdd"), "win": s.get("win", 90), "tx": s.get("tx"),
                     "keep": None, "cd": s.get("cd"), "st": s["st"], "pull": s.get("pull", "?"), "fee": s.get("fee", "See terms"),
                     "exp": s.get("exp") if (s.get("exp") or "") >= TODAY else None, "req": s.get("req", ""), "url": s.get("url"),
-                    "auto": 1, "srcs": [s["src"]], "seen": TODAY}
+                    "auto": 1, "srcs": [s["src"]], "seen": TODAY, "srcUrl": s.get("srcUrl") or s.get("url")}
     for a in autos.values():
+        if link_matches_bank(a["b"], a.get("url") or ""):
+            a["offerUrl"] = a["url"]
+        a["url"] = a.get("srcUrl") or a.get("url")
         a = {k: v for k, v in a.items() if v is not None or k in ("keep", "cd")}
         a["id"] = "auto-" + slug(norm(a["b"]))
         a["first"] = prev_by_id.get(a["id"], {}).get("first", TODAY)
@@ -376,6 +496,9 @@ def main():
         offers = prev  # every source failed: republish last good data untouched
     else:
         offers = merge(curated, scraped, prev, ok)
+    if os.environ.get("SKIP_VERIFY") != "1":
+        n = verify(offers, prev)
+        print(f"Checked {n} offer pages against their listed bonus")
     data = {"generated": NOW, "sources": sources, "offers": offers,
             "scrapedNames": sorted({s["heading"] if s.get("heading") else s["b"] for s in scraped})[:500]}
     site = os.path.join(ROOT, "site")

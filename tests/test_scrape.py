@@ -28,6 +28,9 @@ DOC = """<html><body><div class="entry-content">
 <h3>Hometown Credit Union $300 Checking Bonus - MN Only</h3>
 <p>No direct deposit required. Complete 15 debit transactions within 90 days. Offer ends December 31, 2026.</p>
 <h3>Acme Bank $400 Business Checking</h3><p>Business.</p>
+<h3>Community First Credit Union $300 - FL</h3>
+<p>Open a checking account with direct deposit.</p>
+<div class="wrap"><h4>Union Savings Bank $304</h4><p><a href="https://www.unionsavings.com/personal-checking/304-checking-bonus/">Direct link to offer</a></p></div>
 </div></body></html>"""
 
 FS_ITEMS = [("1", "HSBC", "3,000", "No DD (tiered) | $50/mo fee", "Premier offer."),
@@ -52,7 +55,7 @@ FS = "<html><body><main>" + "".join(_fs_card(i, *x) for i, x in enumerate(FS_ITE
 
 def test():
     d = {o["b"]: o for o in scrape.parse_doc(DOC)}
-    assert set(d) == {"Chase", "Wells Fargo", "Schwab", "Brand New Bank", "BMO", "Hometown Credit Union"}, set(d)
+    assert set(d) == {"Chase", "Wells Fargo", "Schwab", "Brand New Bank", "BMO", "Hometown Credit Union", "Community First Credit Union"}, set(d)
     assert d["Chase"]["amt"] == 900 and d["Chase"]["dd"] == 10000 and d["Chase"]["win"] == 90 and d["Chase"]["st"] == "ALL"
     assert d["Chase"]["exp"] == "2027-01-27" and d["Chase"]["url"].startswith("https://accounts.chase.com")
     assert d["Schwab"]["amt"] == 1000 and d["Schwab"]["dd"] == 0
@@ -100,6 +103,51 @@ def test():
     assert "HSBC" in autos and "Schwab" in autos
     assert sum(1 for o in autos.values() if scrape.norm(o["b"]) == "hometown") == 1, "same bank on both sites must appear once"
     assert autos["Hometown Credit Union"]["srcs"] == ["doc", "fs"]
+    # ---- link validation ----
+    L = scrape.link_matches_bank
+    good = [("Visions Federal Credit Union", "https://visionsfcu.org/500"), ("Republic Bank", "https://www.republicbank.com/start-here/"),
+            ("Chase", "https://accounts.chase.com/x"), ("Huntington", "https://www.huntington.com/x"), ("Bank of America", "https://promotions.bankofamerica.com/"),
+            ("TruStone Financial", "https://www.trustone.org/"), ("Old National", "https://www.oldnational.com/x"), ("Hudson Valley FCU", "https://www.hvfcu.org/x"),
+            ("Wings Credit Union", "https://www.wingscu.com/x"), ("Fifth Third", "https://www.53.com/x"), ("Navy Federal CU", "https://www.navyfederal.org/x")]
+    bad = [("Community First Credit Union", "https://www.unionsavings.com/personal-checking/304-checking-bonus/"),
+           ("MidFirst Bank", "https://www.doctorofcredit.com/az-ok-only-midfirst-bank-200/"), ("Chase", "https://www.citi.com/x"),
+           ("Huntington", "http://www.huntington.com/x"), ("Regions", "https://bit.ly/abc"), ("First Bank", "https://www.firstmerchants.com/")]
+    for b, u in good:
+        assert L(b, u), ("should accept", b, u)
+    for b, u in bad:
+        assert not L(b, u), ("should reject", b, u)
+    cf = {o["b"]: o for o in scrape.parse_doc(DOC)}["Community First Credit Union"]
+    assert "unionsavings" not in cf["url"], ("a neighbouring offer's link leaked in", cf["url"])
+
+    # ---- bank-page amount check (simulated pages) ----
+    pages = {"https://www.bmo.com/ok": "<p>" + "Open a Smart Advantage account today. " * 20 + "Get a $650 bonus when you set up direct deposit.</p>",
+             "https://www.bmo.com/diff": "<p>" + "Open an account. " * 40 + "Earn a $300 bonus with qualifying deposits.</p>",
+             "https://www.bmo.com/js": "<div id=app></div><script>render()</script>",
+             "https://www.bmo.com/elsewhere": "redirect"}
+
+    class Resp:
+        def __init__(s, url, body): s.url, s.body = url, body
+        def __enter__(s): return s
+        def __exit__(s, *a): return False
+        def geturl(s): return "https://www.citi.com/landing" if s.url.endswith("elsewhere") else s.url
+        def read(s, n=-1): return s.body.encode()
+    real = scrape.urllib.request.urlopen
+    scrape.urllib.request.urlopen = lambda req, timeout=0: Resp(req.full_url, pages[req.full_url])
+    try:
+        st = lambda u: scrape.check_one({"b": "BMO", "amt": 650, "offerUrl": u})
+        assert st("https://www.bmo.com/ok")["status"] == "confirmed"
+        r = st("https://www.bmo.com/diff"); assert r["status"] == "differs" and r["amts"] == [300], r
+        assert st("https://www.bmo.com/js")["status"] == "unreadable"
+        assert st("https://www.bmo.com/elsewhere")["status"] == "bad-link"
+        assert st("https://www.citi.com/x")["status"] == "bad-link"
+        offers = [{"id": "bmo", "b": "BMO", "amt": 650, "offerUrl": "https://www.bmo.com/ok"},
+                  {"id": "x", "b": "Chase", "amt": 400, "offerUrl": "https://www.citi.com/x", "url": "https://www.chase.com"}]
+        scrape.verify(offers, [])
+        assert offers[0]["check"]["status"] == "confirmed" and "offerUrl" not in offers[1], offers
+        again = [dict(offers[0], check=None)]
+        assert scrape.verify(again, offers) == 0 and again[0]["check"]["status"] == "confirmed", "fresh checks are reused, not re-fetched"
+    finally:
+        scrape.urllib.request.urlopen = real
     print("all scraper tests passed")
 
 
