@@ -308,14 +308,16 @@ def page_amounts(html):
     for t in soup(["script", "style", "noscript", "svg"]):
         t.decompose()
     text = clean(soup.get_text(" "))
-    amts = set()
+    amts, strong = set(), set()
     for m in re.finditer(r"\$\s?([\d,]{2,6})(?![\d,]*%)", text):
-        ctx = text[max(0, m.start() - 120): m.end() + 120].lower()
-        if re.search(r"bonus|reward|earn|get \$|offer|promotion|cash", ctx):
-            v = int(m[1].replace(",", ""))
-            if 25 <= v <= 5000:
-                amts.add(v)
-    return text, sorted(amts)
+        v = int(m[1].replace(",", ""))
+        if not 25 <= v <= 5000:
+            continue
+        if re.search(r"bonus|reward|earn|get \$|offer|promotion|cash", text[max(0, m.start() - 120): m.end() + 120].lower()):
+            amts.add(v)
+        if re.search(r"bonus", text[max(0, m.start() - 60): m.end() + 60].lower()):
+            strong.add(v)
+    return text, sorted(amts), sorted(strong)
 
 
 def check_one(o):
@@ -335,14 +337,14 @@ def check_one(o):
         return dict(rec, status="unreadable", why=f"{type(e).__name__}"[:60])
     if not link_matches_bank(o["b"], final):
         return dict(rec, status="bad-link", why="redirected to " + host_of(final))
-    text, amts = page_amounts(html)
+    text, amts, strong = page_amounts(html)
     if len(text) < 400:
         return dict(rec, status="unreadable", why="page needs a browser")
     rec["amts"] = amts[:8]
     if o["amt"] in amts or f"${o['amt']:,}" in text or f"${o['amt']}" in text:
         return dict(rec, status="confirmed")
-    if amts:
-        return dict(rec, status="differs")
+    if [a for a in strong if a >= 100]:  # only call it a mismatch when the page ties a real amount to "bonus"
+        return dict(rec, status="differs", amts=[a for a in strong if a >= 100][:8])
     return dict(rec, status="no-amount")
 
 

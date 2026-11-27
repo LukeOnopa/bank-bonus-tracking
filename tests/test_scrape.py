@@ -125,6 +125,7 @@ def test():
     # ---- bank-page amount check (simulated pages) ----
     pages = {"https://www.bmo.com/ok": "<p>" + "Open a Smart Advantage account today. " * 20 + "Get a $650 bonus when you set up direct deposit.</p>",
              "https://www.bmo.com/diff": "<p>" + "Open an account. " * 40 + "Earn a $300 bonus with qualifying deposits.</p>",
+             "https://www.bmo.com/fee": "<p>" + "Open an account and get started with online banking today. " * 20 + "A $30 overdraft fee may apply.</p>",
              "https://www.bmo.com/js": "<div id=app></div><script>render()</script>",
              "https://www.bmo.com/elsewhere": "redirect"}
 
@@ -141,6 +142,7 @@ def test():
         assert st("https://www.bmo.com/ok")["status"] == "confirmed"
         r = st("https://www.bmo.com/diff"); assert r["status"] == "differs" and r["amts"] == [300], r
         assert st("https://www.bmo.com/js")["status"] == "unreadable"
+        assert st("https://www.bmo.com/fee")["status"] == "no-amount", "an unrelated $30 fee is not a bonus mismatch"
         assert st("https://www.bmo.com/elsewhere")["status"] == "bad-link"
         assert st("https://www.citi.com/x")["status"] == "bad-link"
         offers = [{"id": "bmo", "b": "BMO", "amt": 650, "offerUrl": "https://www.bmo.com/ok"},
