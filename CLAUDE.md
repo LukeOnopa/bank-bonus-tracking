@@ -9,6 +9,9 @@ The user watches their Claude usage, so:
 - Prefer the cheaper agents (Haiku, Sonnet) for routine checks.
 - If a full set of checks would be costly (e.g. `site-tester` and `perf-a11y-checker` after a small edit), say which you're skipping and why.
 
+## Merging
+The user has given standing permission to open and merge pull requests into `main` without asking, once GitHub's Tests workflow passes on the branch. Ask first only for bigger feature additions or bigger site changes (new sections or pages, redesigns, changes to how accounts or data work). Always say in the reply what was merged.
+
 ## When to call each agent
 | Situation | Agent |
 |---|---|
