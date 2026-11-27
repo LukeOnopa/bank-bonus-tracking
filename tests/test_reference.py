@@ -65,6 +65,10 @@ def test():
     assert offers[3]["st"] == "?" and offers[3]["stWasAll"] and "stSrc" not in offers[3], "unconfirmed nationwide falls back to the federal lookup"
     assert offers[4]["st"] == "ALL", "a hand-confirmed source in curated.json counts"
     assert offers[5]["st"] == ["MN"]
+    online = [{"b": "Varo", "st": "ALL", "t": "fin"}, {"b": "Example Bank", "st": "ALL", "t": "bank", "req": "Open this online-only checking account"},
+              {"b": "Capital One", "st": "ALL", "t": "bank", "req": "Open a 360 Checking account"}]
+    reference.gate_nationwide(online, [], norm)
+    assert [o.get("natSrc") for o in online[:2]] == ["online", "online"] and online[2]["st"] == "?", online
     print("all reference tests passed")
 
 

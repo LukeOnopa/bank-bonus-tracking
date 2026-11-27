@@ -159,9 +159,21 @@ def page_says_nationwide(text):
     return False
 
 
+ONLINE_ONLY = re.compile(r"online[- ]only|\bonline bank\b|\bdigital bank\b|no (?:physical )?branch(?:es| locations)|branchless|mobile[- ]only", re.I)
+
+
+def online_only(o):
+    """Fintechs and brokerages, or offers whose details say the account is online-only: these can be opened anywhere."""
+    if o.get("t") in ("fin", "brok"):
+        return True
+    words = " ".join(str(x or "") for x in (o.get("req"), o.get("note"), (o.get("ref") or {}).get("avail"), o.get("a")))
+    return bool(ONLINE_ONLY.search(words))
+
+
 def gate_nationwide(offers, scraped, norm):
     """'Anywhere in the US' needs proof: the offer's article says nationwide, Doctor of Credit lists it in its
-    nationwide section, the bank's own page says so, or it was confirmed by hand (natSrc in curated.json).
+    nationwide section, the bank's own page says so, it was confirmed by hand (natSrc in curated.json), or the
+    account is online-only.
     Otherwise the states fall back to where the bank has branches (looked up next)."""
     doc_nat = {norm(x["b"]) for x in scraped if x.get("src") == "doc" and x.get("st") == "ALL"}
     for o in offers:
@@ -174,7 +186,11 @@ def gate_nationwide(offers, scraped, norm):
             o["natSrc"] = "Doctor of Credit"
         elif (o.get("check") or {}).get("nationwide"):
             o["natSrc"] = "bank"
-        elif not o.get("natSrc"):
+        elif o.get("natSrc"):
+            pass
+        elif online_only(o):
+            o["natSrc"] = "online"
+        else:
             o["st"], o["stWasAll"] = "?", True
             o.pop("stSrc", None)
 
