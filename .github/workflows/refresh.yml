@@ -19,7 +19,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -34,6 +34,21 @@ jobs:
         uses: actions/configure-pages@v5
       - name: Scrape offers and build the site
         run: python scripts/scrape.py
+        env:
+          PAGES_URL: ${{ steps.pages.outputs.base_url }}
+      - name: Find bonuses on banks' own websites (crawler; never blocks publishing)
+        continue-on-error: true
+        timeout-minutes: 12
+        run: |
+          python tests/test_discover.py
+          python scripts/discover.py --prev "${PAGES_URL%/}/data/discovered.json" --offers site/data/offers.json \
+            --add-to site/data/offers.json --out site/data/discovered.json --minutes 4
+        env:
+          PAGES_URL: ${{ steps.pages.outputs.base_url }}
+      - name: Keep the last crawl if this one didn't finish
+        if: always()
+        run: |
+          [ -s site/data/discovered.json ] || curl -sf "${PAGES_URL%/}/data/discovered.json" -o site/data/discovered.json || true
         env:
           PAGES_URL: ${{ steps.pages.outputs.base_url }}
       - uses: actions/upload-pages-artifact@v3
