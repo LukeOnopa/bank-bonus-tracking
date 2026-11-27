@@ -44,12 +44,31 @@ def test():
     o = {"auto": 1, "st": ["MN"], "stSrc": "branches", "ref": {"src": "Doctor of Credit", "st": "ALL", "exp": "2021-08-31"}}
     reference.settle(o, today)
     assert o["st"] == "ALL" and "refExpired" not in o, "an old article date isn't treated as the offer ending"
+    assert o["natSrc"] == "Doctor of Credit", "the article that confirms nationwide is named"
     o = {"auto": 1, "st": "?", "stRoundup": ["IL", "WI"], "url": "https://www.doctorofcredit.com/x/"}
     reference.settle(o, today)
     assert o["st"] == ["IL", "WI"] and o["stSrc"] == "article" and o["url"] is None, o
     o = {"st": ["CA"], "url": "https://www.chase.com"}  # hand-researched offers are left alone
     reference.settle(o, today)
     assert o == {"st": ["CA"], "url": "https://www.chase.com"}
+    # "Anywhere in the US" needs proof
+    from scrape import norm
+    assert reference.page_says_nationwide("This offer is available nationwide to new customers.")
+    assert reference.page_says_nationwide("Open an account online from anywhere in the U.S.")
+    assert not reference.page_says_nationwide("Use 40,000 fee-free ATMs nationwide."), "ATMs don't count"
+    assert not reference.page_says_nationwide("Visit one of our branches in all 50 states."), "branches don't count"
+    offers = [{"id": "a", "b": "Chase", "st": "ALL"}, {"id": "b", "b": "SoFi", "st": "ALL", "ref": {"src": "Fat Stacks", "st": "ALL"}},
+              {"id": "c", "b": "Varo", "st": "ALL", "check": {"nationwide": True}}, {"id": "d", "b": "Bell Bank", "st": "ALL", "stSrc": "article"},
+              {"id": "e", "b": "Navy Federal", "st": "ALL", "natSrc": "Navy Federal's membership page"}, {"id": "f", "b": "X", "st": ["MN"]}]
+    reference.gate_nationwide(offers, [{"src": "doc", "b": "Chase", "st": "ALL"}, {"src": "fs", "b": "Bell Bank", "st": "ALL"}], norm)
+    assert [o.get("natSrc") for o in offers[:3]] == ["Doctor of Credit", "Fat Stacks", "bank"]
+    assert offers[3]["st"] == "?" and offers[3]["stWasAll"] and "stSrc" not in offers[3], "unconfirmed nationwide falls back to the federal lookup"
+    assert offers[4]["st"] == "ALL", "a hand-confirmed source in curated.json counts"
+    assert offers[5]["st"] == ["MN"]
+    online = [{"b": "Varo", "st": "ALL", "t": "fin"}, {"b": "Example Bank", "st": "ALL", "t": "bank", "req": "Open this online-only checking account"},
+              {"b": "Capital One", "st": "ALL", "t": "bank", "req": "Open a 360 Checking account"}]
+    reference.gate_nationwide(online, [], norm)
+    assert [o.get("natSrc") for o in online[:2]] == ["online", "online"] and online[2]["st"] == "?", online
     print("all reference tests passed")
 
 

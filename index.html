@@ -627,10 +627,10 @@ function steps(o){const L=[],win=o.win&&o.win<365?` within ${o.win} days`:"";
  return `<ol class="steps">${L.map(x=>`<li><span>${x}</span></li>`).join("")}</ol>`}
 const STNAME={AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",DC:"Washington, D.C.",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming"};
 // "Where" on a card: every state by name; long lists open from a summary line
-function whereHtml(o){if(o.st==="ALL")return "Anywhere in the US";
- if(!Array.isArray(o.st)||!o.st.length)return `<span class="muted">Not listed by the bank — check the offer page</span>`;
+function whereHtml(o){if(o.st==="ALL")return "Anywhere in the US"+(o.natSrc?`<span class="stsrc">${o.natSrc==="online"?"Online-only account":`Confirmed ${o.natSrc==="bank"?`on ${esc(o.b)}'s website`:`by ${esc(o.natSrc)}`}`}</span>`:"");
+ if(!Array.isArray(o.st)||!o.st.length)return o.stWasAll?`<span class="muted">Not confirmed nationwide — check the offer page for who can apply</span>`:`<span class="muted">Not listed by the bank — check the offer page</span>`;
  const me=S.profile.state,chk=o.stCheck,stn=a=>a==="ALL"?"nationwide":a.map(x=>STNAME[x]||x).join(", "),
-  src=(o.stSrc==="branches"?`<span class="stsrc">Where it has branches${chk&&chk.agrees?` · matches ${esc(chk.src)}`:""}</span>`:o.stSrc==="hq"?`<span class="stsrc">Where it's based — check who can join</span>`:o.stSrc==="article"?`<span class="stsrc">From the bonus roundups — not matched in the federal bank lists</span>`:"")
+  src=(o.stSrc==="branches"?`<span class="stsrc">Where it has branches${o.stWasAll?" — not confirmed nationwide":""}${chk&&chk.agrees?` · matches ${esc(chk.src)}`:""}</span>`:o.stSrc==="hq"?`<span class="stsrc">Where it's based — check who can join</span>`:o.stSrc==="article"?`<span class="stsrc">From the bonus roundups — not matched in the federal bank lists</span>`:"")
    +(chk&&!chk.agrees?`<span class="stsrc stdiff">${esc(chk.src)} lists: ${esc(stn(chk.st))}</span>`:"");
  const names=[...o.st].sort((a,b)=>(STNAME[a]||a).localeCompare(STNAME[b]||b));
  if(names.length<=3)return names.map(x=>esc(STNAME[x]||x)).join(", ")+src;
