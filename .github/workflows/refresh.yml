@@ -2,7 +2,7 @@ name: Refresh bonus offers
 
 on:
   schedule:
-    - cron: "17 * * * *"   # every hour at :17 (GitHub may run it a few minutes late)
+    - cron: "17 11 * * *"  # daily at 11:17 UTC (5:17 AM Central); the site's Refresh offers button does quick refreshes in between
   workflow_dispatch:        # "Run workflow" button on the Actions tab
   push:
     branches: [main]
@@ -40,11 +40,11 @@ jobs:
           PAGES_URL: ${{ steps.pages.outputs.base_url }}
       - name: Find bonuses on banks' own websites (crawler; never blocks publishing)
         continue-on-error: true
-        timeout-minutes: 12
+        timeout-minutes: 16
         run: |
           python tests/test_discover.py
           python scripts/discover.py --prev "${PAGES_URL%/}/data/discovered.json" --offers site/data/offers.json \
-            --add-to site/data/offers.json --out site/data/discovered.json --minutes 4
+            --add-to site/data/offers.json --out site/data/discovered.json --minutes 10
         env:
           PAGES_URL: ${{ steps.pages.outputs.base_url }}
       - name: Keep the last crawl if this one didn't finish
