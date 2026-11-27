@@ -542,7 +542,7 @@ function merge(a,b){ // newest wins per entry
 let pushing=null,pushAgain=false;
 function push(){if(!ref)return Promise.resolve();if(pushing){pushAgain=true;return pushing}
  return pushing=(async()=>{do{pushAgain=false;const r=ref;
-  try{if(r.pull){const c=await r.get();if(newer(c)){takeCloud(c);render()}}await r.set(JSON.parse(JSON.stringify(S)));SYNC={ok:1}}catch(e){SYNC={ok:0}}}while(pushAgain&&ref);
+  try{if(r.pull){const c=await r.get();if(newer(c)){takeCloud(c);render()}}await r.set(JSON.parse(JSON.stringify(S)));SYNC={ok:1}}catch(e){SYNC={ok:0,net:e instanceof TypeError||/fetch|network|load failed/i.test(e.message||"")};console.warn("sync failed",e.status||"",e.code||"",e.message)}}while(pushAgain&&ref);
   pushing=null;syncLine()})()}
 // ---- approval odds from your ChexSystems inquiry counts ----
 const WIN=[["c1",1],["c3",3],["c6",6],["c12",12],["c24",24]];
@@ -1148,7 +1148,7 @@ document.addEventListener("submit",e=>{if(e.target.id!=="add")return;e.preventDe
 // The publishable key is meant to be public; row-level security in the database keeps each user's data private.
 const SB_URL="https://kabhrbrfrtmfzhxyttqc.supabase.co",SB_KEY="sb_publishable_LBUhyFQtNiUHpq3fQRxOKg_Qdmp2eel",SB_ON=!!(SB_URL&&SB_KEY);
 const HOME=location.origin+location.pathname;
-let AUTH=null,AMODE="in",AMSG="",AERR="",AEMAIL="",ABUSY=false,SYNC=null;
+let AFORCE=false,AUTH=null,AMODE="in",AMSG="",AERR="",AEMAIL="",ABUSY=false,SYNC=null;
 try{AUTH=SB_ON?JSON.parse(localStorage.getItem("cbt_auth")||"null"):null}catch(e){}
 function saveAuth(){try{AUTH?localStorage.setItem("cbt_auth",JSON.stringify(AUTH)):localStorage.removeItem("cbt_auth")}catch(e){}}
 function setAuth(j){AUTH={at:j.access_token,rt:j.refresh_token,exp:Date.now()+((+j.expires_in||3600)-60)*1000,id:j.user?.id||AUTH?.id,email:j.user?.email||AUTH?.email};saveAuth()}
@@ -1185,7 +1185,7 @@ function newer(c){if(!c||!c.profile||!c.track)return false;if((c.profile.u||0)>(
  const g=new Set(S.gone||[]);if((c.gone||[]).some(x=>!g.has(x)))return true;
  const ids=new Set((S.custom||[]).map(x=>x.id));return (c.custom||[]).some(x=>!ids.has(x.id)&&!g.has(x.id))}
 function takeCloud(c){S=merge(S,c);try{localStorage.setItem("cbt",JSON.stringify(S))}catch(e){}refreshChex()}
-function syncText(){if(AUTH&&ref===sbRef)return !SYNC?"Syncing…":SYNC.ok?"Saved to your account. It syncs to every device you sign in on.":"Couldn't reach your account just now. Your changes are saved in this browser and will sync when you're back online.";
+function syncText(){if(AUTH&&ref===sbRef)return !SYNC?"Syncing…":SYNC.ok?"Saved to your account. It syncs to every device you sign in on.":SYNC.net===false?"Your account couldn't save your latest changes because of a problem on our side. They're safe in this browser, and the site will keep trying.":"Couldn't reach your account just now. Your changes are saved in this browser and will sync when you're back online.";
  return ref?"Saved to your Claude account — it follows you across devices.":"Saved in this browser only."+(SB_ON?" Use Sign in at the top of the page to sync across devices.":"")}
 function acctBtn(){const b=$("#acctbtn");if(!b)return;b.hidden=!SB_ON;b.textContent=AUTH&&AMODE!=="reset"?"My account":"Sign in";b.title=AUTH?(AUTH.email||""):"Create a free account or sign in"}
 function syncLine(){const e=$("#sync");if(e)e.textContent=syncText();acctBtn()}
@@ -1193,7 +1193,7 @@ function acctHtml(){if(!SB_ON)return "";
  const msg=(AERR?`<p class="aerr" role="alert">${esc(AERR)}</p>`:"")+(AMSG?`<p class="aok" role="status">${esc(AMSG)}</p>`:""),dis=ABUSY?" disabled":"";
  let h=`<h2 class="sec" id="acct">Your account</h2>`;
  if(AMODE==="reset"||AMODE==="change")return h+`<form id="acctf" data-mode="${AMODE}" novalidate><p class="note">Choose a new password (at least 8 characters).</p><label>New password<input name="pw" type="password" autocomplete="new-password" minlength="8" required></label>${msg}<p class="arow"><button class="btn" type="submit"${dis}>${ABUSY?"Saving…":"Save new password"}</button>${AMODE==="change"?`<button class="btn ghost" type="button" data-act="acct-cancel">Cancel</button>`:""}</p></form>`;
- if(AUTH)return h+`<p>Signed in as <b>${esc(AUTH.email||"")}</b></p>${msg}<p class="arow"><button class="btn ghost" data-act="acct-pw">Change password</button><button class="btn ghost" data-act="acct-out"${dis}>${ABUSY?"Signing out…":"Sign out"}</button></p><p class="note">Signing out removes your data from this browser. It stays saved in your account.</p>`;
+ if(AUTH)return h+`<p>Signed in as <b>${esc(AUTH.email||"")}</b></p>${msg}<p class="arow"><button class="btn ghost" data-act="acct-pw">Change password</button><button class="btn ghost" data-act="acct-out"${dis}>${ABUSY?"Signing out…":AFORCE?"Try again":"Sign out"}</button>${AFORCE?`<button class="btn ghost" data-act="acct-force"${dis}>Sign out anyway</button>`:""}</p>${AFORCE?`<p class="note">"Sign out anyway" keeps your unsaved changes in this browser instead of deleting them.</p>`:""}<p class="note">Signing out removes your data from this browser. It stays saved in your account.</p>`;
  if(AMODE==="forgot")return h+`<form id="acctf" data-mode="forgot" novalidate><p class="note">Enter your email and we'll send you a link to set a new password.</p><label>Email<input name="email" type="email" autocomplete="email" required value="${esc(AEMAIL)}"></label>${msg}<p class="arow"><button class="btn" type="submit"${dis}>${ABUSY?"Sending…":"Send reset link"}</button><button class="btn ghost" type="button" data-act="acct-mode" data-m="in">Back to sign in</button></p></form>`;
  const up=AMODE==="up";
  return h+`<p class="note">A free account saves your setup answers, the bank accounts you're tracking and your plan, and keeps them in sync on every device you sign in on. Use a new password, not your bank password. The site still works without an account.</p>
@@ -1203,7 +1203,7 @@ function acctHtml(){if(!SB_ON)return "";
 function acctRender(focus){render();if(focus)$(`#acctf [name="${focus}"]`)?.focus()}
 async function connect(first){ref=sbRef;SYNC=null;syncLine();
  try{const c=await sbRef.get();if(c&&c.profile&&c.track)takeCloud(c);render();await push();if(first)toast(SYNC&&SYNC.ok?"Signed in. Your data now syncs to your account.":"Signed in. We couldn't sync yet, so your data is saved in this browser for now.")}
- catch(x){SYNC={ok:0};if(!AUTH)ref=null;render()}}
+ catch(x){SYNC={ok:0,net:x instanceof TypeError||/fetch|network|load failed/i.test(x.message||"")};console.warn("sync failed",x.status||"",x.code||"",x.message);if(!AUTH)ref=null;render()}}
 async function pullNow(){if(ref!==sbRef||pushing)return;try{const c=await sbRef.get();if(newer(c)){takeCloud(c);render()}SYNC={ok:1}}catch(e){SYNC={ok:0}}syncLine()}
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")pullNow()});
 addEventListener("online",()=>{if(ref)push()});
@@ -1213,8 +1213,9 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-act^=acct]
  if(a==="acct-mode"){AMODE=b.dataset.m;AERR="";AMSG="";acctRender("email");return}
  if(a==="acct-pw"){AMODE="change";AERR="";AMSG="";acctRender("pw");return}
  if(a==="acct-cancel"){AMODE="in";AERR="";AMSG="";render();return}
- if(a==="acct-out"&&!ABUSY){(async()=>{ABUSY=true;AERR="";AMSG="";render();clearTimeout(saveT);
-  if(ref===sbRef){await push();if(!SYNC||!SYNC.ok){ABUSY=false;AERR="Couldn't save your latest changes to your account, so you're still signed in. Check your connection and try again.";render();return}}
+ if(a==="acct-force"&&!ABUSY){(async()=>{ABUSY=true;try{await sb("/auth/v1/logout",{method:"POST"})}catch(x){}AUTH=null;saveAuth();ref=null;try{sessionStorage.setItem("cbt_msg","Signed out. Your unsaved changes are still in this browser.")}catch(x){}location.replace(HOME+"#find");location.reload()})();return}
+ if(a==="acct-out"&&!ABUSY){(async()=>{ABUSY=true;AFORCE=false;AERR="";AMSG="";render();clearTimeout(saveT);
+  if(ref===sbRef){await push();if(!SYNC||!SYNC.ok){ABUSY=false;AFORCE=true;AERR=SYNC&&SYNC.net===false?"Your account couldn't save your latest changes because of a problem on our side, so you're still signed in. Your changes are safe in this browser.":"Couldn't save your latest changes to your account, so you're still signed in. Check your connection and try again.";render();return}}
   try{await sb("/auth/v1/logout",{method:"POST"})}catch(x){}
   AUTH=null;saveAuth();ref=null;try{localStorage.removeItem("cbt");sessionStorage.setItem("cbt_msg","Signed out")}catch(x){}
   location.replace(HOME+"#find");location.reload()})()}});
