@@ -289,6 +289,15 @@ div.tl-name{cursor:default}
 .bk.recent{border-color:var(--gold);background:var(--goldsoft)}.bk.recent small{color:var(--gold)}
 .inav{display:flex;justify-content:space-between;gap:10px;padding:16px 24px 22px;border-top:1px solid var(--rule);background:color-mix(in srgb,var(--paper) 50%,var(--sheet))}
 .btn:disabled{opacity:.45;cursor:not-allowed}
+.iq.err b{color:var(--brick)}
+.iq.err input,.iq.err select,.iq.err .seg2,.iq.err .bankgrid{border-color:var(--brick);box-shadow:0 0 0 1px var(--brick)}
+.iq.err .bankgrid{border-radius:12px;padding:6px;border:1px solid var(--brick)}
+.errmsg{margin:8px 0 0;font-size:14px;font-weight:600;color:var(--brick)}.errmsg::before{content:"! ";}
+.ierr,.ihint{margin:0;flex:1;text-align:right;font-size:14px;align-self:center}
+.ierr{color:var(--brick);font-weight:600}.ihint{color:var(--mute)}
+.isteps .locked button{opacity:.5;cursor:not-allowed}
+.check.none{margin-top:12px}
+
 @media(max-width:700px){.iq{grid-template-columns:minmax(0,1fr);gap:10px}.ihead,.ibody{padding-left:16px;padding-right:16px}.inav{padding:14px 16px}}
 @media(prefers-reduced-motion:reduce){.toast,.card,.more summary::before{transition:none}}
 @media(max-width:1080px){.findwrap{grid-template-columns:minmax(0,1fr)}
@@ -845,30 +854,49 @@ function planHtml(P){const p=S.profile,sum=P.reduce((s,x)=>s+x.o.amt,0);
  const rules=[`live in ${esc(p.state)}`,`${money(+p.ddCap||0)} a month of paycheck split up to ${+p.splits||3} ways`,`up to ${+p.pace||2} new account${(+p.pace||2)===1?"":"s"} a month`,p.transfers?"transfers count where they're known to work":"real paychecks only",p.onlySure!==false?"only offers you definitely qualify for":"uncertain offers included"];
  return `<section class="panel planbox"><div><h3>Your plan for the next 6 months</h3><p class="note">${P.length?`Following the suggested schedule could earn about <b>${money(sum)}</b> from ${P.length} new account${P.length===1?"":"s"}.`:`No new applications fit your answers right now. Try allowing more accounts a month, a bigger paycheck amount, or uncertain offers.`} Based on your answers: ${rules.join(", ")}.</p></div>
  <button class="btn ghost" data-act="iedit">Change my answers</button></section>`}
-let ISTEP=0,IEDIT=false;
+let ISTEP=0,IEDIT=false,ERRSTEP=-1;
 function bankList(){const seen=new Map();for(const o of OFFERS.filter(o=>!o.auto))if(!seen.has(bkey(o.b)))seen.set(bkey(o.b),o.b);return [...seen].sort((a,b)=>a[1].localeCompare(b[1]))}
-function intake(){const p=S.profile,steps=["Where you bank","Your paycheck","Money and credit","Banks you've used","Pace and ChexSystems"];
- const yn=(k,yes,no,def)=>{const v=p[k]??def;return `<div class="seg2" role="radiogroup"><label><input type="radio" name="${k}" data-act="iqb" data-k="${k}" value="1"${v===true?" checked":""}>${yes}</label><label><input type="radio" name="${k}" data-act="iqb" data-k="${k}" value="0"${v===false?" checked":""}>${no}</label></div>`};
- const q=(t,help,ctl)=>`<div class="iq"><div><b>${t}</b>${help?`<p class="note">${help}</p>`:""}</div><div>${ctl}</div></div>`;
+const ISTEPS=["Where you bank","Your paycheck","Money and credit","Banks you've used","Pace and ChexSystems"];
+// what each step needs; a question counts as answered only once you've answered it here (or finished setup before)
+const IQ=[[["state","Choose your state."],["branch","Choose Yes or No."],["mil","Choose Yes or No."]],
+ [["ddCap","Enter an amount. 0 is fine."],["splits","Choose a number."],["transfers","Choose one."]],
+ [["cash","Enter an amount. 0 is fine."],["noHard","Choose one."],["noFee","Choose one."]],
+ [["banks","Tap the banks you've used, or check \"None of these.\""]],
+ [["pace","Choose a number."],["onlySure","Choose one."],["c12","Enter a number. 0 is fine."]]];
+const answered=k=>{const p=S.profile,ia=p.ia||{};if(k==="state")return !!p.state;if(p.intakeDone)return true;
+ if(k==="banks")return !!ia.banks&&(p.noBanks||Object.keys(p.banks||{}).length>0);if(k==="c12")return !!ia.c12&&(p.chex||{}).c12!=null;return !!ia[k]};
+const missing=i=>IQ[i].filter(([k])=>!answered(k));
+const firstOpen=()=>{for(let i=0;i<5;i++)if(missing(i).length)return i;return 5};
+function intake(){const p=S.profile,err=ERRSTEP===ISTEP?missing(ISTEP):[],bad=new Set(err.map(x=>x[0])),reach=firstOpen();
+ const yn=(k,yes,no)=>{const v=answered(k)?p[k]:undefined;return `<div class="seg2" role="radiogroup" aria-labelledby="q-${k}"${bad.has(k)?' aria-invalid="true"':""}><label><input type="radio" name="${k}" data-act="iqb" data-k="${k}" value="1"${v===true?" checked":""}>${yes}</label><label><input type="radio" name="${k}" data-act="iqb" data-k="${k}" value="0"${v===false?" checked":""}>${no}</label></div>`};
+ const num=(k,val,step,label)=>`<input type="number" inputmode="numeric" min="0" step="${step}" data-act="${k==="c12"?"chex":"prof"}" data-k="${k}" value="${answered(k)?val:""}" placeholder="0" aria-labelledby="q-${k}"${bad.has(k)?' aria-invalid="true"':""}>`;
+ const sel=(k,opts)=>`<select data-act="prof" data-k="${k}" aria-labelledby="q-${k}"${bad.has(k)?' aria-invalid="true"':""}><option value=""${answered(k)?"":" selected"}>Choose</option>${opts.map(n=>`<option${answered(k)&&+p[k]===n?" selected":""}>${n}</option>`).join("")}</select>`;
+ const q=(k,t,help,ctl)=>`<div class="iq${bad.has(k)?" err":""}" data-q="${k}"><div><b id="q-${k}">${t}</b>${help?`<p class="note">${help}</p>`:""}</div><div>${ctl}${bad.has(k)?`<p class="errmsg">${esc(err.find(x=>x[0]===k)[1])}</p>`:""}</div></div>`;
  let body="";
- if(ISTEP===0)body=q("Which state do you live in?","Most bonuses are only for people living near the bank's branches.",`<select data-act="prof" data-k="state" aria-label="State"><option value="">Choose your state</option>${STATES.map(s=>`<option${s===p.state?" selected":""}>${s}</option>`).join("")}</select>`)
-  +q("Can you get to a bank branch to open an account?","A few offers can only be opened in person.",yn("branch","Yes","No, online only",true))
-  +q("Can you join Navy Federal?","Members of the military, veterans, Department of Defense workers and their families.",yn("mil","Yes","No",false));
- if(ISTEP===1)body=q("How much of your paycheck can you send to new banks each month?","Your take-home pay that can go somewhere other than your main bank.",`<input type="number" inputmode="numeric" min="0" step="100" data-act="prof" data-k="ddCap" value="${+p.ddCap||0}" aria-label="Monthly paycheck amount">`)
-  +q("Into how many accounts can your employer split your paycheck?","Check your payroll site. Many allow 2 to 5. Pick 1 if you can only change the whole deposit.",`<select data-act="prof" data-k="splits" aria-label="Paycheck splits">${[1,2,3,4,5,6,8,10].map(n=>`<option${(+p.splits||3)===n?" selected":""}>${n}</option>`).join("")}</select>`)
-  +q("Are you comfortable moving money between your own accounts to meet direct deposit rules?","At many banks a transfer from another bank you own counts as a direct deposit. Banks can still refuse the bonus if it doesn't count, so some people prefer real paychecks only.",yn("transfers","Yes, when it's known to work","No, real paychecks only",false));
- if(ISTEP===2)body=q("How much cash could you leave in a new account for a few months?","Some bonuses need a deposit instead of a paycheck.",`<input type="number" inputmode="numeric" min="0" step="500" data-act="prof" data-k="cash" value="${+p.cash||0}" aria-label="Cash available">`)
-  +q("Is a hard credit check OK?","It can lower your credit score a few points for a while. Most checking accounts only do a soft check.",yn("noHard","Avoid hard checks","Fine with me",false).replace('value="1"','value="1"').replace(/data-k="noHard" value="1"/,'data-k="noHard" value="1"'))
-  +q("Skip accounts with monthly fees that are hard to avoid?","Most fees can be waived with a minimum balance or a direct deposit.",yn("noFee","Yes, skip them","No, I'll manage",false));
- if(ISTEP===3){const B=bankList(),rel=p.banks||{};body=`<div class="iq wide"><div><b>Which of these banks do you use now, or have closed in the last 2 years?</b><p class="note">Bonuses are almost always for new customers. Tap once for "have it now," twice for "closed recently," and a third time to clear.</p></div>
-  <div class="bankgrid">${B.map(([k,n])=>`<button class="bk ${rel[k]||""}" data-act="bank" data-k="${esc(k)}" aria-pressed="${!!rel[k]}">${esc(n)}<small>${rel[k]==="have"?"Have it now":rel[k]==="recent"?"Closed recently":""}</small></button>`).join("")}</div></div>`}
- if(ISTEP===4){const c=S.profile.chex||{};body=q("How many new accounts a month are you comfortable opening?","Opening too many at once can get you turned down at banks that count recent applications.",`<select data-act="prof" data-k="pace" aria-label="Accounts per month">${[1,2,3,4,5].map(n=>`<option${(+p.pace||2)===n?" selected":""}>${n}</option>`).join("")}</select>`)
-  +q("Only suggest offers you definitely qualify for?","Some offers come from bonus sites without a list of eligible states. Turn this off to include them anyway.",yn("onlySure","Yes, only sure things","Include uncertain ones",true))
-  +q("How many bank applications are on your ChexSystems report from the last 12 months?",`Rough is fine. For exact counts, upload your report on the Deposits &amp; ChexSystems tab.`,`<input type="number" inputmode="numeric" min="0" data-act="chex" data-k="c12" value="${c.c12??""}" placeholder="0" aria-label="ChexSystems inquiries in 12 months">`)}
- return `<section class="intake panel"><div class="ihead"><h2 class="sec">${IEDIT?"Your planning answers":"Let's build your plan"}</h2><p class="note">${IEDIT?"Change anything and the plan updates right away.":"Five quick questions, so suggestions only include bonuses you can actually get."}</p>
- <ol class="isteps">${steps.map((s,i)=>`<li class="${i===ISTEP?"on":i<ISTEP?"done":""}"><button data-act="istep" data-k="${i}">${s}</button></li>`).join("")}</ol></div>
+ if(ISTEP===0)body=q("state","Which state do you live in?","Most bonuses are only for people living near the bank's branches.",`<select data-act="prof" data-k="state" aria-labelledby="q-state"${bad.has("state")?' aria-invalid="true"':""}><option value="">Choose your state</option>${STATES.map(s=>`<option${s===p.state?" selected":""}>${s}</option>`).join("")}</select>`)
+  +q("branch","Can you get to a bank branch to open an account?","A few offers can only be opened in person.",yn("branch","Yes","No, online only"))
+  +q("mil","Can you join Navy Federal?","Members of the military, veterans, Department of Defense workers and their families.",yn("mil","Yes","No"));
+ if(ISTEP===1)body=q("ddCap","How much of your paycheck can you send to new banks each month?","Your take-home pay that can go somewhere other than your main bank.",num("ddCap",+p.ddCap||0,100))
+  +q("splits","Into how many accounts can your employer split your paycheck?","Check your payroll site. Many allow 2 to 5. Pick 1 if you can only change the whole deposit.",sel("splits",[1,2,3,4,5,6,8,10]))
+  +q("transfers","Are you comfortable moving money between your own accounts to meet direct deposit rules?","At many banks a transfer from another bank you own counts as a direct deposit. Banks can still refuse the bonus if it doesn't count, so some people prefer real paychecks only.",yn("transfers","Yes, when it's known to work","No, real paychecks only"));
+ if(ISTEP===2)body=q("cash","How much cash could you leave in a new account for a few months?","Some bonuses need a deposit instead of a paycheck.",num("cash",+p.cash||0,500))
+  +q("noHard","Is a hard credit check OK?","It can lower your credit score a few points for a while. Most checking accounts only do a soft check.",yn("noHard","Avoid hard checks","Fine with me"))
+  +q("noFee","Skip accounts with monthly fees that are hard to avoid?","Most fees can be waived with a minimum balance or a direct deposit.",yn("noFee","Yes, skip them","No, I'll manage"));
+ if(ISTEP===3){const B=bankList(),rel=p.banks||{};body=`<div class="iq wide${bad.has("banks")?" err":""}" data-q="banks"><div><b id="q-banks">Which of these banks do you use now, or have closed in the last 2 years?</b><p class="note">Bonuses are almost always for new customers. Tap once for "have it now," twice for "closed recently," and a third time to clear.</p></div>
+  <div class="bankgrid" role="group" aria-labelledby="q-banks">${B.map(([k,n])=>`<button class="bk ${rel[k]||""}" data-act="bank" data-k="${esc(k)}" aria-pressed="${!!rel[k]}">${esc(n)}<small>${rel[k]==="have"?"Have it now":rel[k]==="recent"?"Closed recently":""}</small></button>`).join("")}</div>
+  <label class="check none"><input type="checkbox" data-act="nobanks"${p.noBanks&&(p.ia||{}).banks?" checked":""}> None of these. I haven't used any of these banks in the last 2 years.</label>
+  ${bad.has("banks")?`<p class="errmsg">${esc(err[0][1])}</p>`:""}</div>`}
+ if(ISTEP===4)body=q("pace","How many new accounts a month are you comfortable opening?","Opening too many at once can get you turned down at banks that count recent applications.",sel("pace",[1,2,3,4,5]))
+  +q("onlySure","Only suggest offers you definitely qualify for?","Some offers come from bonus sites without a list of eligible states. Choose the second option to include them anyway.",yn("onlySure","Yes, only sure things","Include uncertain ones"))
+  +q("c12","How many bank applications are on your ChexSystems report from the last 12 months?",`Rough is fine. For exact counts, upload your report on the Deposits &amp; ChexSystems tab.`,num("c12",(S.profile.chex||{}).c12??"",1));
+ const left=missing(ISTEP).length;
+ return `<section class="intake panel"><div class="ihead"><h2 class="sec">${IEDIT?"Your planning answers":"Let's build your plan"}</h2><p class="note">${IEDIT?"Change anything and the plan updates right away.":"Five quick questions, so suggestions only include bonuses you can actually get. Answer each step to unlock the next."}</p>
+ <ol class="isteps">${ISTEPS.map((s,i)=>{const done=i!==ISTEP&&!missing(i).length,locked=i>reach;
+  return `<li class="${i===ISTEP?"on":done?"done":""}${locked?" locked":""}"><button data-act="istep" data-k="${i}"${locked?` disabled aria-disabled="true" title="Finish step ${reach+1} first"`:""}${i===ISTEP?' aria-current="step"':""}>${s}</button></li>`}).join("")}</ol></div>
  <div class="ibody">${body}</div>
- <div class="inav"><button class="btn ghost" data-act="istep" data-k="${ISTEP-1}"${ISTEP===0?" disabled":""}>Back</button>${ISTEP<4?`<button class="btn" data-act="istep" data-k="${ISTEP+1}"${ISTEP===0&&!p.state?" disabled":""}>Next</button>`:`<button class="btn" data-act="idone">${IEDIT?"Done":"Show my plan"}</button>`}</div></section>`}
+ <div class="inav"><button class="btn ghost" data-act="istep" data-k="${ISTEP-1}"${ISTEP===0?" disabled":""}>Back</button>
+ <p class="${err.length?"ierr":"ihint"}" role="${err.length?"alert":"status"}">${err.length?`Answer the ${err.length===1?"highlighted question":`${err.length} highlighted questions`} to continue.`:left?`${left} question${left===1?"":"s"} left on this step.`:"All set. Continue when you're ready."}</p>
+ ${ISTEP<4?`<button class="btn" data-act="inext">Next</button>`:`<button class="btn" data-act="idone">${IEDIT?"Done":"Show my plan"}</button>`}</div></section>`}
 function viewMine(){const L=all().filter(o=>S.track[o.id]?.status),ready=S.profile.intakeDone&&S.profile.state;
  if(!ready||IEDIT){const parts=intake();return parts+(L.length&&!IEDIT?`<p class="note" style="margin:14px 0 22px">Your ${L.length} tracked account${L.length===1?" is":"s are"} below. Suggestions appear once you finish.</p>`+timeline([])+mineCards(L):"")}
  const P=plan();
@@ -1010,10 +1038,13 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data
  if(a==="rvcancel"){RV=null;CHMSG="";render()}
  if(a==="chexpaste"){const t=$("#chexpaste")?.value||"";if(t.trim()){finishRead(parseReport(t),"pasted text");render()}}
  if(a==="chexfill"){S.profile.chexAuto=false;S.profile.chex=fillChex();S.profile.u=now();save();render();toast("Estimated from accounts in your tracker — adjust to match your report")}
- if(a==="istep"){const k=+b.dataset.k;if(k>=0&&k<=4){ISTEP=k;render();$("#view .intake")?.scrollIntoView({block:"start",behavior:RM.matches?"auto":"smooth"})}return}
+ if(a==="istep"){const k=+b.dataset.k;if(k>=0&&k<=4&&k<=firstOpen()){ISTEP=k;ERRSTEP=-1;render();$("#view .intake")?.scrollIntoView({block:"start",behavior:RM.matches?"auto":"smooth"})}return}
+ if(a==="inext"||a==="idone"){if(missing(ISTEP).length){ERRSTEP=ISTEP;render();const f=$(`#view .iq.err input,#view .iq.err select,#view .iq.err button`);if(f){f.focus({preventScroll:true});f.closest(".iq").scrollIntoView({block:"center",behavior:RM.matches?"auto":"smooth"})}return}
+  ERRSTEP=-1;if(a==="inext"){ISTEP++;render();$("#view .intake")?.scrollIntoView({block:"start",behavior:RM.matches?"auto":"smooth"});$("#view .ibody input,#view .ibody select,#view .ibody .bk")?.focus({preventScroll:true});return}}
  if(a==="idone"){S.profile.intakeDone=true;S.profile.u=now();IEDIT=false;ISTEP=0;save();render();window.scrollTo({top:0,behavior:RM.matches?"auto":"smooth"});toast("Plan ready");return}
  if(a==="iedit"){IEDIT=true;ISTEP=0;render();$("#view .intake")?.scrollIntoView({block:"start"});return}
- if(a==="bank"){const k=b.dataset.k,B=S.profile.banks=S.profile.banks||{};B[k]=!B[k]?"have":B[k]==="have"?"recent":undefined;if(!B[k])delete B[k];S.profile.u=now();save();render();return}
+ if(a==="bank"){const k=b.dataset.k,B=S.profile.banks=S.profile.banks||{};B[k]=!B[k]?"have":B[k]==="have"?"recent":undefined;if(!B[k])delete B[k];
+  S.profile.ia={...(S.profile.ia||{}),banks:true};if(Object.keys(B).length)S.profile.noBanks=false;S.profile.u=now();save();render();$(`#view .bk[data-k="${CSS.escape(k)}"]`)?.focus();return}
  if(a==="planall"){PLANALL=!PLANALL;render();return}
  if(a==="nm"){const id=b.dataset.id,k=b.dataset.k;if(k==="plan")planOffer(id,b.dataset.d||today());else setStatus(id,k,document.querySelector(`#view .card[data-card="${CSS.escape(id)}"] select[data-act="status"]`));return}
  if(a==="jump"){const c=document.querySelector(`#view .card[data-card="${CSS.escape(b.dataset.id)}"]`);if(c){c.scrollIntoView({behavior:RM.matches?"auto":"smooth",block:"center"});c.animate([{boxShadow:"0 0 0 3px var(--gold)"},{boxShadow:"0 0 0 0 transparent"}],{duration:1400})}return}
@@ -1027,8 +1058,10 @@ document.addEventListener("click",e=>{const b=e.target.closest("[data-tab],[data
  if(a==="imp"){try{const n=JSON.parse($("#imp").value);if(!n.profile||!n.track)throw 0;const u=now();n.profile.u=u;for(const k in n.track)n.track[k].u=u;S={...S,...n};save();render();toast("Restored")}catch(x){toast("That doesn't look like a backup")}}});
 document.addEventListener("input",e=>{const el=e.target;if(el.dataset.act==="f"&&el.dataset.k==="q"){F.q=el.value;render()}});
 document.addEventListener("change",e=>{const el=e.target,a=el.dataset.act;if(!a)return;
+ if(el.closest&&el.closest(".intake")&&el.dataset.k)S.profile.ia={...(S.profile.ia||{}),[el.dataset.k]:el.value!==""};
  if(a==="status")return setStatus(el.dataset.id,el.value,el);
- if(a==="prof"){const k=el.dataset.k;S.profile[k]=el.type==="checkbox"?el.checked:el.type==="number"?+el.value:el.value;S.profile.u=now();save();setTimeout(render,0)}
+ if(a==="prof"){const k=el.dataset.k;if(el.type==="number"&&el.value===""&&el.closest(".intake")){setTimeout(render,0);return}S.profile[k]=el.type==="checkbox"?el.checked:el.type==="number"?+el.value:el.value;S.profile.u=now();save();setTimeout(render,0)}
+ if(a==="nobanks"){S.profile.noBanks=el.checked;if(el.checked)S.profile.banks={};S.profile.ia={...(S.profile.ia||{}),banks:true};S.profile.u=now();save();setTimeout(render,0);return}
  if(a==="iqb"){S.profile[el.dataset.k]=el.value==="1";S.profile.u=now();save();setTimeout(render,0);return}
  if(a==="chexfile"){const f=el.files&&el.files[0];el.value="";if(f)readFile(f);return}
  if(a==="rvinc"&&RV){RV.inq[+el.dataset.i].inc=el.checked;setTimeout(render,0);return}
