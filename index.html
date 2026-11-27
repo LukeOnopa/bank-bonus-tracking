@@ -126,17 +126,17 @@ abbr[title]{text-decoration:underline dotted;text-underline-offset:3px;cursor:he
 .facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 18px;margin:0;padding:14px 0 0;border-top:1px solid var(--rule)}
 .facts dt{font-size:12px;color:var(--mute)}.facts dd{margin:2px 0 0;font-size:14px;font-weight:500}
 .facts .muted{color:var(--mute);font-weight:400}
-.stl summary{cursor:pointer;color:var(--green);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;list-style:none;display:inline-flex;align-items:center;gap:4px;min-height:24px}
-.stl summary::-webkit-details-marker{display:none}.stl summary::after{content:"▾";font-size:11px;transition:transform .15s}.stl[open] summary::after{transform:rotate(180deg)}
-.facts>div:has(details.stl[open]){grid-column:1/-1}
-.stl ul{list-style:none;margin:6px 0 0;padding:8px 10px;max-height:190px;overflow:auto;columns:auto 9.5em;column-gap:14px;font-size:13px;font-weight:400;background:var(--field);border:1px solid var(--rule);border-radius:8px}
+.stl summary{cursor:pointer;color:var(--green);text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px;list-style:none;display:inline;line-height:1.6}
+.stl summary::-webkit-details-marker{display:none}.stl summary::after{content:"▾";display:inline-block;margin-left:4px;font-size:11px;transition:transform .15s}.stl[open] summary::after{transform:rotate(180deg)}
+.stl{position:relative}
+.stl ul{position:absolute;left:0;top:calc(100% + 6px);z-index:30;width:min(330px,calc(100vw - 48px));box-shadow:0 10px 28px rgba(0,0,0,.18);list-style:none;margin:0;padding:8px 10px;max-height:220px;overflow:auto;columns:auto 9.5em;column-gap:14px;font-size:13px;font-weight:400;background:var(--sheet);border:1px solid var(--rule);border-radius:8px}
 .stl li{break-inside:avoid;padding:1px 0}.stl li.me{font-weight:700;color:var(--ink)}
 .stsrc{display:block;font-size:12px;font-weight:400;color:var(--mute)}.stdiff{color:var(--brick)}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px;background:var(--mute)}.dot.o5{background:var(--green)}.dot.o3{background:var(--warn)}.dot.o1{background:var(--brick)}
 .heads{margin:0;font-size:14px;padding:10px 14px;background:var(--goldsoft);border-radius:10px;color:var(--ink)}
 .heads b{color:var(--gold)}
-.foot{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-top:auto;flex-wrap:wrap;padding-top:4px}
-.foot select{width:auto;flex:1 1 170px;margin:0}
+.foot{display:flex;flex-direction:column;align-items:stretch;gap:10px;margin-top:auto;padding-top:4px}
+.foot select{width:100%;margin:0}.foot .go{align-self:flex-start;min-height:24px;display:inline-flex;align-items:center;overflow-wrap:anywhere}
 .go{font-weight:600;font-size:14px;color:var(--green)}
 .why{font-size:14px;color:var(--warn);margin:0}.why.ok{color:var(--green)}
 .req{margin:0;font-size:15px}
@@ -635,6 +635,14 @@ function whereHtml(o){if(o.st==="ALL")return "Anywhere in the US";
  const names=[...o.st].sort((a,b)=>(STNAME[a]||a).localeCompare(STNAME[b]||b));
  if(names.length<=3)return names.map(x=>esc(STNAME[x]||x)).join(", ")+src;
  return `<details class="stl"><summary>${names.length} states${me&&o.st.includes(me)?`, including ${esc(STNAME[me]||me)}`:""}</summary><ul>${names.map(x=>`<li${x===me?' class="me"':""}>${esc(STNAME[x]||x)}</li>`).join("")}</ul></details>${src}`}
+{const HOVER=matchMedia("(hover:hover) and (pointer:fine)");let shut=null;
+ const closeAll=keep=>document.querySelectorAll("details.stl[open]").forEach(d=>{if(d!==keep)d.open=false});
+ document.addEventListener("mouseover",e=>{if(!HOVER.matches)return;const d=e.target.closest&&e.target.closest("details.stl");if(!d)return;clearTimeout(shut);closeAll(d);d.open=true});
+ document.addEventListener("mouseout",e=>{if(!HOVER.matches)return;const d=e.target.closest&&e.target.closest("details.stl");if(!d||d.contains(e.relatedTarget))return;clearTimeout(shut);shut=setTimeout(()=>{d.open=false},180)});
+ document.addEventListener("click",e=>{const sm=e.target.closest&&e.target.closest("details.stl>summary");
+  if(sm&&HOVER.matches){e.preventDefault();sm.parentElement.open=true;return} // hover already opened it; a click shouldn't toggle it shut
+  if(!(e.target.closest&&e.target.closest("details.stl")))closeAll(null)});
+ document.addEventListener("keydown",e=>{if(e.key==="Escape")closeAll(null)})}
 function facts(o){const od=odds(o),cl=chexLbl(o),dl=ddLbl(o),F=[];
  const fee=!o.fee||/see terms|varies|^—$/i.test(o.fee)?"Check the terms":/^none$/i.test(o.fee)?"None":esc(o.fee).replace(/,\s*waivable/i," a month (can be waived)").replace(/^(\$[\d.]+)$/,"$1 a month");
  F.push(["Monthly fee",fee]);
