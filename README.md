@@ -28,6 +28,15 @@ Free accounts use Supabase for sign-in and storage. The site talks to Supabase's
 - In Supabase under **Authentication → URL Configuration**, the Site URL and redirect URLs must include the live app address, or confirmation and password-reset emails will link to the wrong place.
 - Sync merges by timestamp per entry, so two devices editing at once don't overwrite each other's newer changes.
 
+## Tests
+
+Every push runs `.github/workflows/tests.yml` on GitHub (free for public repos):
+
+- `tests/test_scrape.py` checks the scraper against saved sample pages.
+- `tests/e2e/` holds browser tests for setup, offer statuses, the planner's limits, Start over and Undo, free accounts, and phone and desktop layouts. Accounts are tested against an in-memory stand-in for Supabase (`tests/e2e/mock-supabase.js`), so the tests never touch real user data.
+
+To run the browser tests yourself: `npm install`, `npx playwright install chromium`, then `npm test`. Add a filter to run some, e.g. `npm test -- planner`.
+
 ## Maintenance
 
 - **Run it now:** Actions tab → *Refresh bonus offers* → *Run workflow*.

@@ -1,0 +1,28 @@
+name: Tests
+
+# Runs on every push to any branch (free for public repos). The hourly refresh is a separate workflow.
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install beautifulsoup4==4.12.3
+      - name: Scraper tests
+        run: python tests/test_scrape.py
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Browser tests (setup, statuses, planner, Start over, accounts, layout)
+        run: npm test
