@@ -17,6 +17,12 @@ A checking-account bonus tracker that refreshes its offer list every hour.
 2. It merges them with the hand-researched list in `data/curated.json`: updates bonus amounts, fills in missing churn rules and expiry dates, records when each offer was last listed, and adds offers it hasn't seen before (marked "Auto-collected — verify details").
 3. It deploys the app (`index.html`) plus a fresh `data/offers.json` to GitHub Pages. Nothing is committed, so the repo history stays clean.
 
+**Where the details come from.** The banks' own pages and the federal lists come first; the roundup sites are a reference:
+- Cards link only to the bank: its offer page (from the roundup article's "Open account" / "Direct link to offer" button), or its homepage. Never to the roundup article.
+- Availability is the bank's branch states from FDIC BankFind or NCUA (`scripts/locate.py`). The article's "Availability" line is compared with it, and the card shows when they agree or what the article says instead. If an article says nationwide, the offer stays nationwide. If the bank can't be matched in the federal lists, the article's list is used and the card says so.
+- Bonus amounts are checked on the bank's offer page. End dates from articles fill gaps; a recently passed one is flagged (`scripts/reference.py`).
+- `scripts/discover.py` also crawls banks' and credit unions' own sites in MN, WI, IA, ND and SD for bonuses the roundups don't list.
+
 If a site is down or changes its layout, that source is skipped for the run and the last good data is kept. The app's header shows when offers were last checked and whether any source failed. Offers that drop off both sites for 7 days are hidden as possibly ended.
 
 ## Accounts (Supabase)

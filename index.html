@@ -131,7 +131,7 @@ abbr[title]{text-decoration:underline dotted;text-underline-offset:3px;cursor:he
 .facts>div:has(details.stl[open]){grid-column:1/-1}
 .stl ul{list-style:none;margin:6px 0 0;padding:8px 10px;max-height:190px;overflow:auto;columns:auto 9.5em;column-gap:14px;font-size:13px;font-weight:400;background:var(--field);border:1px solid var(--rule);border-radius:8px}
 .stl li{break-inside:avoid;padding:1px 0}.stl li.me{font-weight:700;color:var(--ink)}
-.stsrc{display:block;font-size:12px;font-weight:400;color:var(--mute)}
+.stsrc{display:block;font-size:12px;font-weight:400;color:var(--mute)}.stdiff{color:var(--brick)}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px;background:var(--mute)}.dot.o5{background:var(--green)}.dot.o3{background:var(--warn)}.dot.o1{background:var(--brick)}
 .heads{margin:0;font-size:14px;padding:10px 14px;background:var(--goldsoft);border-radius:10px;color:var(--ink)}
 .heads b{color:var(--gold)}
@@ -629,7 +629,9 @@ const STNAME={AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California
 // "Where" on a card: every state by name; long lists open from a summary line
 function whereHtml(o){if(o.st==="ALL")return "Anywhere in the US";
  if(!Array.isArray(o.st)||!o.st.length)return `<span class="muted">Not listed by the bank — check the offer page</span>`;
- const me=S.profile.state,src=o.stSrc==="branches"?`<span class="stsrc">Where it has branches</span>`:o.stSrc==="hq"?`<span class="stsrc">Where it's based — check who can join</span>`:"";
+ const me=S.profile.state,chk=o.stCheck,stn=a=>a==="ALL"?"nationwide":a.map(x=>STNAME[x]||x).join(", "),
+  src=(o.stSrc==="branches"?`<span class="stsrc">Where it has branches${chk&&chk.agrees?` · matches ${esc(chk.src)}`:""}</span>`:o.stSrc==="hq"?`<span class="stsrc">Where it's based — check who can join</span>`:o.stSrc==="article"?`<span class="stsrc">From the bonus roundups — not matched in the federal bank lists</span>`:"")
+   +(chk&&!chk.agrees?`<span class="stsrc stdiff">${esc(chk.src)} lists: ${esc(stn(chk.st))}</span>`:"");
  const names=[...o.st].sort((a,b)=>(STNAME[a]||a).localeCompare(STNAME[b]||b));
  if(names.length<=3)return names.map(x=>esc(STNAME[x]||x)).join(", ")+src;
  return `<details class="stl"><summary>${names.length} states${me&&o.st.includes(me)?`, including ${esc(STNAME[me]||me)}`:""}</summary><ul>${names.map(x=>`<li${x===me?' class="me"':""}>${esc(STNAME[x]||x)}</li>`).join("")}</ul></details>${src}`}
@@ -649,6 +651,7 @@ function verifyLine(o){const c=o.check;if(!c||c.status!=="confirmed")return"";
 function headsUp(o){const H=[],c=o.check||{};if(o.note)H.push(esc(o.note));
  if(c.status==="differs")H.push(`${esc(o.b)}'s own offer page mentions ${c.amts.map(money).join(", ")} — not ${money(o.amt)}. The offer may have changed, or the bank lists a different tier; check before applying.`);
  if(c.status==="bad-link")H.push(`The link the bonus sites gave doesn't go to ${esc(o.b)}'s website${c.why?` (${esc(c.why)})`:""}, so it's been removed. Use the source article to find the offer.`);
+ if(o.refExpired)H.push(`${esc((o.ref&&o.ref.src)||"A bonus roundup")} lists this offer as ending ${fmt(o.refExpired)} — check ${esc(o.b)}'s page to see if it's still running.`);
  if(o.crawl)H.push(`Found on ${esc(o.b)}'s own website by this site's crawler${o.first?` on ${fmt(o.first).replace(/, \d{4}$/,"")}`:""}. Nobody has reviewed it yet, so read the offer page and confirm the terms before applying.`);
  else if(o.auto&&c.status!=="confirmed")H.push("Collected automatically from bonus sites — confirm the details on the offer page before applying.");
  else if(META&&!o.seen&&!o.custom)H.push("Not on the bonus roundups right now — make sure it's still live.");
@@ -658,9 +661,11 @@ function selStatus(o){const v=S.track[o.id]?.status||"";return `<select data-act
 function checkNote(o){const c=o.check;if(!c||["confirmed","differs","bad-link"].includes(c.status))return"";
  const why={unreadable:`couldn't read ${esc(hostOf(c.url)||"the bank's page")} automatically${c.why?` (${esc(c.why)})`:""}`,"no-amount":`${esc(hostOf(c.url))} loaded but didn't show a bonus amount`,"no-link":"no direct link to the bank's offer page yet"}[c.status];
  return why?`<h4>Bank page check</h4><p class="note">Not confirmed: ${why}. Compare the amount on the bank's site yourself.</p>`:""}
-function linkFor(o){const ok=u=>/^https:\/\//.test(u||"");
+// cards link to the bank only; bonus roundup sites are a reference for the site, not a destination
+const COMPILER=/(^|\.)(doctorofcredit|fatstacksacademy)\.com$/;
+function linkFor(o){const ok=u=>/^https:\/\//.test(u||"")&&!COMPILER.test(hostOf(u));
  if(ok(o.offerUrl))return[o.offerUrl,`Go to offer on ${esc(hostOf(o.offerUrl))} ↗`];
- if(ok(o.url))return[o.url,o.auto?`Read about it on ${esc(hostOf(o.url))} ↗`:`${esc(o.b)} website ↗`];return null}
+ if(ok(o.url))return[o.url,`${esc(o.b)} website ↗`];return null}
 function card(o){const r=elig(o),lk=linkFor(o);
  const tags=[];if(o.changed&&-days(o.changed)<=7&&o.prevAmt)tags.push(`<span class="tag">was ${money(o.prevAmt)}</span>`);
  if(o.first&&-days(o.first)<=3&&META&&o.first>FIRST_RUN)tags.push(`<span class="tag new">New</span>`);

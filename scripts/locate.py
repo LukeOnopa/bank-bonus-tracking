@@ -23,7 +23,7 @@ FDIC = "https://api.fdic.gov/banks"
 NCUA = "https://mapping.ncua.gov/api"
 UA = "BankBonusTracker/1.0 (+https://github.com/LukeOnopa/bank-bonus-tracking)"
 CACHE_DAYS = 30
-VERSION = 2  # bump when the lookup gets smarter, so cached answers are redone
+VERSION = 3  # bump when the lookup gets smarter, so cached answers are redone
 THIRD_PARTY = ("doctorofcredit.com", "fatstacksacademy.com", "reddit.com", "bit.ly", "tinyurl.com")
 STATES = set("AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split())
 CU = re.compile(r"credit union|\bc\.?u\.?\b|\bfcu\b|federal credit", re.I)
@@ -191,7 +191,9 @@ def locate_one(o, norm):
             c, how = pick(fdic_candidates(o["b"]), o, norm, "NAME", lambda c: c.get("WEBADDR") or "", "STALP")
             if c:
                 st = fdic_states(c["CERT"]) or [c["STALP"]]
-                return {"st": st, "stSrc": "branches", "stInst": f"{c['NAME']} (FDIC #{c['CERT']})", "stHow": how}
+                web = c.get("WEBADDR") or ""
+                return {"st": st, "stSrc": "branches", "stInst": f"{c['NAME']} (FDIC #{c['CERT']})", "stHow": how,
+                        "stSite": ("https://" + host(web)) if host(web) else None}
         else:
             cands = ncua_candidates(o["b"])
             sites = {}
@@ -200,8 +202,10 @@ def locate_one(o, norm):
             c, how = pick(cands, o, norm, "name", lambda c: sites.get(c["charterNumber"], ""), "state")
             if c:
                 branch = ncua_states(c["charterNumber"])
+                web = sites.get(c["charterNumber"]) or ncua_site(c["charterNumber"])
                 return {"st": branch or [c["state"]], "stSrc": "branches" if branch else "hq",
-                        "stInst": f"{c['name'].title()} (NCUA #{c['charterNumber']})", "stHow": how}
+                        "stInst": f"{c['name'].title()} (NCUA #{c['charterNumber']})", "stHow": how,
+                        "stSite": ("https://" + host(web)) if host(web) else None}
     return None
 
 
@@ -234,7 +238,7 @@ def locate(offers, prev, norm, budget=250, today=None, fetch=None, link_ok=None,
         p = old.get(o["id"]) or {}
         if p.get("stOn") and p.get("stVer") == VERSION and (today - dt.date.fromisoformat(p["stOn"])).days < CACHE_DAYS:
             if p.get("stSrc"):
-                o.update({k: p[k] for k in ("st", "stSrc", "stInst", "stHow", "stOn", "stVer") if k in p})
+                o.update({k: p[k] for k in ("st", "stSrc", "stInst", "stHow", "stOn", "stVer", "stSite") if k in p})
                 found += 1
             else:
                 o["stOn"], o["stVer"] = p["stOn"], VERSION  # looked up recently and not found: don't retry yet
